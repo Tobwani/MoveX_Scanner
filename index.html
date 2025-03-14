@@ -9,12 +9,14 @@
   <style>
     .container {
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
     }
 
     #reader {
       width: 600px;
+      margin-bottom: 20px;
     }
 
     #result {
@@ -38,22 +40,23 @@
       fps: 20,
     });
 
-    scanner.render(success, error);
-
-    function success() {
+    function success(decodedText, decodedResult) {
       document.getElementById('result').innerHTML = `
-      <h3>Erfolgreich gescannt</h3>
-      <p>${result}</p>
-      <br/> <br/>
-      <a href="index.html">nochmal scannen</a>
+        <h3>Erfolgreich gescannt</h3>
+        <p>${decodedText}</p>
+        <br/><br/>
+        <a href="index.html">Nochmals scannen</a>
       `;
 
       scanner.clear();
-
       document.getElementById('reader').remove();
     }
 
-    function error() { }
+    function error(err) {
+      console.warn(`Scan-Fehler: ${err}`);
+    }
+
+    scanner.render(success, error);
   </script>
 </body>
 
