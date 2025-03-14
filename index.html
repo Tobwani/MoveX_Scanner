@@ -1,10 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barcodescanner</title>
+  <title>Barcodescanner mit Produktinfo</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     .container {
@@ -13,41 +12,65 @@
       justify-content: center;
       align-items: center;
     }
-
     #reader {
       width: 600px;
       margin-bottom: 20px;
     }
-
     #result {
       text-align: center;
       font-size: 1.5rem;
     }
   </style>
 </head>
-
 <body>
   <div class="container">
     <div id="reader"></div>
     <div id="result"></div>
   </div>
   <script>
+    // Initialisiere den Scanner
     const scanner = new Html5QrcodeScanner('reader', {
-      qrbox: {
-        width: 250,
-        height: 250,
-      },
+      qrbox: { width: 250, height: 250 },
       fps: 20,
     });
 
+    // Erfolgshandler: Barcode wurde gescannt
     function success(decodedText, decodedResult) {
+      // Zeige zunächst den Barcode an
       document.getElementById('result').innerHTML = `
         <h3>Erfolgreich gescannt</h3>
-        <p>${decodedText}</p>
-        <br/><br/>
-        <a href="index.html">Nochmals scannen</a>
+        <p>Barcode: ${decodedText}</p>
       `;
 
+      // Rufe die Open Food Facts API ab
+      fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json')
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 1) { // Produkt gefunden
+            const product = data.product;
+            let productInfo = `<h4>Produktinformationen:</h4>`;
+            productInfo += `<p><strong>Name:</strong> ${product.product_name || "Nicht verfügbar"}</p>`;
+            productInfo += `<p><strong>Marke:</strong> ${product.brands || "Nicht verfügbar"}</p>`;
+            productInfo += `<p><strong>Hersteller:</strong> ${product.manufacturing_places || "Nicht verfügbar"}</p>`;
+            if (product.nutriments) {
+              productInfo += `<p><strong>Nährwerte:</strong></p>`;
+              productInfo += `<ul>`;
+              for (const [key, value] of Object.entries(product.nutriments)) {
+                productInfo += `<li>${key}: ${value}</li>`;
+              }
+              productInfo += `</ul>`;
+            }
+            document.getElementById('result').innerHTML += productInfo;
+          } else {
+            document.getElementById('result').innerHTML += `<p>Keine Produktinformationen gefunden.</p>`;
+          }
+        })
+        .catch(error => {
+          console.error('Fehler beim Abrufen der Produktinformationen:', error);
+          document.getElementById('result').innerHTML += `<p>Fehler beim Abrufen der Produktinformationen.</p>`;
+        });
+
+      // Beende den Scanner und entferne den Reader
       scanner.clear();
       document.getElementById('reader').remove();
     }
@@ -56,8 +79,8 @@
       console.warn(`Scan-Fehler: ${err}`);
     }
 
+    // Starte den Scanner
     scanner.render(success, error);
   </script>
 </body>
-
 </html>
