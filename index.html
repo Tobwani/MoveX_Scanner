@@ -15,6 +15,9 @@
       max-width: 600px;
       margin: auto;
     }
+    body, input, .alert, .card {
+      font-family: Arial, sans-serif;
+    }
   </style>
 </head>
 <body>
@@ -22,14 +25,46 @@
     <div id="reader"></div>
     <div id="result" class="mt-4"></div>
   </div>
-  
+
   <script>
     // Initialisiere den Scanner
     const scanner = new Html5QrcodeScanner('reader', {
       qrbox: { width: 250, height: 250 },
       fps: 20,
     });
-    
+
+    // Funktion, um Text mit der MyMemory API zu übersetzen
+    function translateWithSource(text, sourceLang) {
+      const url = "https://api.mymemory.translated.net/get?q=" 
+                  + encodeURIComponent(text) 
+                  + "&langpair=" + sourceLang + "|de";
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.responseData && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+          }
+          return text;
+        })
+        .catch(error => {
+          console.error("Übersetzungsfehler (" + sourceLang + "):", error);
+          return text;
+        });
+    }
+
+    // Fallback-Übersetzung: Iteriert über eine Liste von Quellsprachen
+    async function fallbackTranslate(text) {
+      const languageCodes = ["en", "es"]; // Hier kannst du weitere Codes hinzufügen, z. B. "fr", "it", ...
+      for (let lang of languageCodes) {
+        let translated = await translateWithSource(text, lang);
+        if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
+          return translated;
+        }
+      }
+      // Falls keine Übersetzung einen Unterschied macht, gib den Originaltext zurück.
+      return text;
+    }
+
     // Erfolgshandler: Barcode wurde erfolgreich gescannt
     function success(decodedText, decodedResult) {
       // Abruf der Produktdaten über die Open Food Facts API
@@ -39,17 +74,21 @@
           if (data.status === 1) { // Produkt gefunden
             const product = data.product;
             const productName = product.product_name || "Produktname nicht verfügbar";
-            // Erstelle eine ansprechende Bootstrap Card zur Anzeige
-            const cardHTML = `
-              <div class="card">
-                <div class="card-body">
-                  <h5 class="card-title">Produktname</h5>
-                  <p class="card-text">${productName}</p>
-                  <a href="index.html" class="btn btn-primary">Nochmals scannen</a>
+
+            // Übersetze den Produktnamen ins Deutsche
+            fallbackTranslate(productName).then(translatedName => {
+              // Erstelle eine ansprechende Bootstrap Card zur Anzeige
+              const cardHTML = `
+                <div class="card">
+                  <div class="card-body">
+                    <h5 class="card-title">Produktname</h5>
+                    <p class="card-text">${translatedName}</p>
+                    <a href="index.html" class="btn btn-primary">Nochmals scannen</a>
+                  </div>
                 </div>
-              </div>
-            `;
-            document.getElementById('result').innerHTML = cardHTML;
+              `;
+              document.getElementById('result').innerHTML = cardHTML;
+            });
           } else {
             document.getElementById('result').innerHTML = `
               <div class="alert alert-warning" role="alert">
@@ -66,21 +105,21 @@
             </div>
           `;
         });
-      
+
       // Scanner beenden und das Reader-Element entfernen
       scanner.clear();
       document.getElementById('reader').remove();
     }
-    
+
     // Fehlerbehandlung beim Scannen
     function error(err) {
       console.warn(`Scan-Fehler: ${err}`);
     }
-    
+
     // Starte den Scanner
     scanner.render(success, error);
   </script>
-  
+
   <!-- Bootstrap JS und Abhängigkeiten -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
