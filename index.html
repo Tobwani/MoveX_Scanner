@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,26 +12,28 @@
     .container {
       margin-top: 20px;
     }
+
     #reader {
       max-width: 600px;
       margin: auto;
     }
   </style>
 </head>
+
 <body>
   <div class="container">
     <div id="reader"></div>
     <div id="result" class="mt-4"></div>
   </div>
-  
+
   <script>
     // Initialisiere den Scanner
     const scanner = new Html5QrcodeScanner('reader', {
       qrbox: { width: 250, height: 250 },
       fps: 20,
     });
-    
-    // Funktion zur Übersetzung via LibreTranslate API
+
+    // Funktion, um einen Text mittels der LibreTranslate API ins Deutsche zu übersetzen
     function translateText(text) {
       return fetch("https://libretranslate.de/translate", {
         method: "POST",
@@ -42,17 +45,17 @@
         }),
         headers: { "Content-Type": "application/json" }
       })
-      .then(response => response.json())
-      .then(data => data.translatedText)
-      .catch(error => {
-        console.error("Übersetzungsfehler:", error);
-        return text; // Im Fehlerfall Originaltext zurückgeben
-      });
+        .then(response => response.json())
+        .then(data => data.translatedText)
+        .catch(error => {
+          console.error("Übersetzungsfehler:", error);
+          return text; // Bei Fehler den Originaltext zurückgeben
+        });
     }
-    
-    // Erfolgshandler, wenn ein Barcode gescannt wurde
+
+    // Erfolgshandler: Barcode wurde erfolgreich gescannt
     function success(decodedText, decodedResult) {
-      // Abruf der Produktdaten über Open Food Facts API
+      // Abruf der Produktdaten über die Open Food Facts API
       fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json')
         .then(response => response.json())
         .then(data => {
@@ -72,10 +75,6 @@
                 </div>
               `;
               document.getElementById('result').innerHTML = cardHTML;
-              // Nach Anzeige des Ergebnisses Scanner beenden und den Reader ausblenden
-              scanner.clear().then(() => {
-                document.getElementById('reader').style.display = 'none';
-              }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
             });
           } else {
             document.getElementById('result').innerHTML = `
@@ -83,9 +82,6 @@
                 Keine Produktinformationen gefunden.
               </div>
             `;
-            scanner.clear().then(() => {
-              document.getElementById('reader').style.display = 'none';
-            }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
           }
         })
         .catch(error => {
@@ -95,24 +91,26 @@
               Fehler beim Abrufen der Produktinformationen.
             </div>
           `;
-          scanner.clear().then(() => {
-              document.getElementById('reader').style.display = 'none';
-          }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
         });
+
+      // Scanner beenden und das Reader-Element entfernen
+      scanner.clear();
+      document.getElementById('reader').remove();
     }
-    
-    // Fehlerhandler beim Scannen
+
+    // Fehlerbehandlung beim Scannen
     function error(err) {
       console.warn(`Scan-Fehler: ${err}`);
     }
-    
+
     // Starte den Scanner
     scanner.render(success, error);
   </script>
-  
+
   <!-- Bootstrap JS und Abhängigkeiten -->
   <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
 </body>
+
 </html>
