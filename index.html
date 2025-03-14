@@ -30,7 +30,7 @@
       fps: 20,
     });
     
-    // Funktion, um einen Text mittels der LibreTranslate API ins Deutsche zu übersetzen
+    // Funktion zur Übersetzung via LibreTranslate API
     function translateText(text) {
       return fetch("https://libretranslate.de/translate", {
         method: "POST",
@@ -46,13 +46,13 @@
       .then(data => data.translatedText)
       .catch(error => {
         console.error("Übersetzungsfehler:", error);
-        return text; // Bei Fehler den Originaltext zurückgeben
+        return text; // Im Fehlerfall Originaltext zurückgeben
       });
     }
     
-    // Erfolgshandler: Barcode wurde erfolgreich gescannt
+    // Erfolgshandler, wenn ein Barcode gescannt wurde
     function success(decodedText, decodedResult) {
-      // Abruf der Produktdaten über die Open Food Facts API
+      // Abruf der Produktdaten über Open Food Facts API
       fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json')
         .then(response => response.json())
         .then(data => {
@@ -72,6 +72,10 @@
                 </div>
               `;
               document.getElementById('result').innerHTML = cardHTML;
+              // Nach Anzeige des Ergebnisses Scanner beenden und den Reader ausblenden
+              scanner.clear().then(() => {
+                document.getElementById('reader').style.display = 'none';
+              }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
             });
           } else {
             document.getElementById('result').innerHTML = `
@@ -79,6 +83,9 @@
                 Keine Produktinformationen gefunden.
               </div>
             `;
+            scanner.clear().then(() => {
+              document.getElementById('reader').style.display = 'none';
+            }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
           }
         })
         .catch(error => {
@@ -88,14 +95,13 @@
               Fehler beim Abrufen der Produktinformationen.
             </div>
           `;
+          scanner.clear().then(() => {
+              document.getElementById('reader').style.display = 'none';
+          }).catch(error => console.error("Fehler beim Beenden des Scanners:", error));
         });
-      
-      // Scanner beenden und das Reader-Element entfernen
-      scanner.clear();
-      document.getElementById('reader').remove();
     }
     
-    // Fehlerbehandlung beim Scannen
+    // Fehlerhandler beim Scannen
     function error(err) {
       console.warn(`Scan-Fehler: ${err}`);
     }
