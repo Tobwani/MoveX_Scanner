@@ -3,26 +3,46 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Barcodescanner mit Produktinfo</title>
+  <title>MoveX - Produkt Scanner</title>
   <!-- Bootstrap CSS -->
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- HTML5 QR Code Scanner -->
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+    }
     .container {
-      margin-top: 20px;
+      margin-top: 50px;
+      text-align: center;
     }
     #reader {
-      max-width: 600px;
+      width: 100%;
+      max-width: 400px;
       margin: auto;
     }
-    body, input, .alert, .card {
-      font-family: Arial, sans-serif;
+    #loadingSpinner {
+      display: none;
+      margin-top: 20px;
+    }
+    .card {
+      margin-top: 20px;
+    }
+    .app-title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 20px;
     }
   </style>
 </head>
 <body>
   <div class="container">
+    <div class="app-title">MoveX Produkt Scanner</div>
     <div id="reader"></div>
+    <div id="loadingSpinner" class="spinner-border text-primary" role="status">
+      <span class="sr-only">Lädt...</span>
+    </div>
     <div id="result" class="mt-4"></div>
   </div>
 
@@ -33,11 +53,23 @@
       fps: 20,
     });
 
-    // Funktion, um Text mit der MyMemory API zu übersetzen
+    // Liste der möglichen Quellsprachen für die Übersetzung
+    const languageCodes = ["en", "es", "fr", "it"];
+
+    // Funktion zur Übersetzung des Textes mit Fallback-Mechanismus
+    async function fallbackTranslate(text) {
+      for (let lang of languageCodes) {
+        let translated = await translateWithSource(text, lang);
+        if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
+          return translated;
+        }
+      }
+      return text;
+    }
+
+    // Funktion zur Übersetzung mit spezifischer Quellsprache
     function translateWithSource(text, sourceLang) {
-      const url = "https://api.mymemory.translated.net/get?q=" 
-                  + encodeURIComponent(text) 
-                  + "&langpair=" + sourceLang + "|de";
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|de`;
       return fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -47,28 +79,18 @@
           return text;
         })
         .catch(error => {
-          console.error("Übersetzungsfehler (" + sourceLang + "):", error);
+          console.error(`Übersetzungsfehler (${sourceLang}):`, error);
           return text;
         });
     }
 
-    // Fallback-Übersetzung: Iteriert über eine Liste von Quellsprachen
-    async function fallbackTranslate(text) {
-      const languageCodes = ["en", "es"]; // Hier kannst du weitere Codes hinzufügen, z. B. "fr", "it", ...
-      for (let lang of languageCodes) {
-        let translated = await translateWithSource(text, lang);
-        if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
-          return translated;
-        }
-      }
-      // Falls keine Übersetzung einen Unterschied macht, gib den Originaltext zurück.
-      return text;
-    }
-
     // Erfolgshandler: Barcode wurde erfolgreich gescannt
     function success(decodedText, decodedResult) {
+      // Ladebildschirm anzeigen
+      document.getElementById('loadingSpinner').style.display = 'block';
+
       // Abruf der Produktdaten über die Open Food Facts API
-      fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json')
+      fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
         .then(response => response.json())
         .then(data => {
           if (data.status === 1) { // Produkt gefunden
@@ -104,11 +126,14 @@
               Fehler beim Abrufen der Produktinformationen.
             </div>
           `;
+        })
+        .finally(() => {
+          // Ladebildschirm ausblenden
+          document.getElementById('loadingSpinner').style.display = 'none';
+          // Scanner beenden und das Reader-Element entfernen
+          scanner.clear();
+          document.getElementById('reader').remove();
         });
-
-      // Scanner beenden und das Reader-Element entfernen
-      scanner.clear();
-      document.getElementById('reader').remove();
     }
 
     // Fehlerbehandlung beim Scannen
