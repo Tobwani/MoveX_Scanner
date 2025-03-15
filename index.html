@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MoveX - Produkt Scanner</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- HTML5 QR Code Scanner -->
+  <script src="node_modules/html5-qrcode/html5-qrcode.min.js"></script>
+  <style>
+    body {
+      background-color: #f8f9fa;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      margin-top: 50px;
+      text-align: center;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: auto;
+    }
+
+    #loadingSpinner {
+      display: none;
+      margin-top: 20px;
+    }
+
+    .card {
+      margin-top: 20px;
+    }
+
+    .app-title {
+      font-size: 2rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+      color: #007bff;
+      /* MoveX Farbe */
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="app-title">MoveX Produkt Scanner</div>
+    <div id="reader"></div>
+    <div id="loadingSpinner" class="spinner-border text-primary" role="status">
+      <span class="sr-only">Lädt...</span>
+    </div>
+    <div id="result" class="mt-4"></div>
+  </div>
+
+  <script>
+    // Initialisiere den Scanner
+    const scanner = new Html5QrcodeScanner('reader', {
+      qrbox: { width: 250, height: 250 },
+      fps: 10,
+    });
+
+    // Liste der möglichen Quellsprachen für die Übersetzung
+    const languageCodes = ["en", "es", "fr", "it"];
+
+    // Funktion zur Übersetzung mit spezifischer Quellsprache
+    function translateWithSource(text, sourceLang) {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|de`;
+      return fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.responseData && data.responseData.translatedText) {
+            return data.responseData.translatedText;
+          }
+          return text;
+        })
+        .catch(error => {
+          console.error(`Übersetzungsfehler (${sourceLang}):`, error);
+          return text;
+        });
+    }
+
+    // Fallback-Übersetzung: iteriert über die Liste der Sprachen
+    async function fallbackTranslate(text) {
+      for (let lang of languageCodes) {
+        let translated = await translateWithSource(text, lang);
+        if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
+          return translated;
+        }
+      }
+      return text;
+    }
+
+    // Erfolgshandler: Barcode wurde erfolgreich gescannt
+    function success(decodedText, decodedResult) {
+      // Spinner anzeigen, sobald der Scan abgeschlossen ist
+      document.getElementById('loadingSpinner').style.display = 'block';
+
+      // Abruf der Produktdaten über die Open Food Facts API
+      fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 1) { // Produkt gefunden
+            const product = data.product;
+            const productName = product.product_name || "Produktname nicht verfügbar";
+
+            // Übersetze den Produktnamen ins Deutsche und erstelle die Card erst, wenn die Übersetzung fertig ist
+            fallbackTranslate(productName).then(translatedName => {
+              // Spinner ausblenden
+              document.getElementById('loadingSpinner').style.display = 'none';
+
+              // Erstelle eine ansprechende Bootstrap Card zur Anzeige
+              const cardHTML = `
+                <div class="card shadow">
+                  <div class="card-body">
+                    <h5 class="card-title">Produktname</h5>
+                    <p class="card-text">${translatedName}</p>
+                    <a href="index.html" class="btn btn-primary">Nochmals scannen</a>
+                  </div>
+                </div>
+              `;
+              document.getElementById('result').innerHTML = cardHTML;
+            });
+          } else {
+            // Spinner ausblenden, wenn keine Produktinformationen gefunden wurden
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.getElementById('result').innerHTML = `
+              <div class="alert alert-warning" role="alert">
+                Keine Produktinformationen gefunden.
+              </div>
+            `;
+          }
+        })
+        .catch(error => {
+          console.error("Fehler beim Abrufen der Produktinformationen:", error);
+          document.getElementById('loadingSpinner').style.display = 'none';
+          document.getElementById('result').innerHTML = `
+            <div class="alert alert-danger" role="alert">
+              Fehler beim Abrufen der Produktinformationen.
+            </div>
+          `;
+        })
+        .finally(() => {
+          // Scanner beenden und das Reader-Element entfernen
+          scanner.clear();
+          document.getElementById('reader').remove();
+        });
+    }
+
+    // Fehlerbehandlung beim Scannen
+    function error(err) {
+      console.warn(`Scan-Fehler: ${err}`);
+    }
+
+    // Starte den Scanner
+    scanner.render(success, error);
+  </script>
+
+  <!-- Bootstrap JS und Abhängigkeiten -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>
