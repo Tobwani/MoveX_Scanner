@@ -259,8 +259,7 @@
       </div>
       <div class="row justify-content-center">
         <div class="col-lg-8 text-center">
-          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt
-            sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
+          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
         </div>
       </div>
     </div>
@@ -273,7 +272,6 @@
         <h2>Unsere Vorteile</h2>
       </div>
       <div class="row">
-        <!-- Auf mobilen Geräten: volle Breite (col-12); ab mittleren Geräten: 1/3 (col-md-4) -->
         <div class="col-12 col-md-4">
           <div class="feature-card text-center">
             <i class="fas fa-clock feature-icon"></i>
@@ -357,9 +355,9 @@
 
     // Übersetzungsfunktion für eine bestimmte Quellsprache mit der MyMemory API
     function translateWithSource(text, sourceLang) {
-      const url = "https://api.mymemory.translated.net/get?q="
-        + encodeURIComponent(text)
-        + "&langpair=" + sourceLang + "|de";
+      const url = "https://api.mymemory.translated.net/get?q=" 
+                  + encodeURIComponent(text) 
+                  + "&langpair=" + sourceLang + "|de";
       return fetch(url)
         .then(response => response.json())
         .then(data => {
@@ -379,7 +377,10 @@
       const response = await fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json');
       const data = await response.json();
       if (data.status === 1) {
-        return data.product.product_name || "Produktname nicht verfügbar";
+        return {
+          productName: data.product.product_name || "Produktname nicht verfügbar",
+          stores: data.product.stores || ""
+        };
       } else {
         throw new Error("Produkt nicht gefunden");
       }
@@ -420,14 +421,29 @@
         // Stoppe den Scanner vollständig
         await html5QrCode.stop();
         // Produktinformationen abrufen
-        let productName = await getProductInfo(decodedText);
-        // Übersetze den Produktnamen mithilfe des Fallback-Mechanismus
-        productName = await fallbackTranslate(productName);
-        // Anzeige des Produktnamens in einer Bootstrap-Alert-Box
+        let productData = await getProductInfo(decodedText);
+        let productName = productData.productName;
+        let stores = productData.stores;
+        let filteredStores = "";
+        if (stores) {
+          let storeArray = stores.split(/[;,]+/).map(s => s.trim());
+          const keywords = ["Lidl", "Rewe", "Edeka"];
+          let matchingStores = storeArray.filter(store => {
+            return keywords.some(keyword => store.toLowerCase().includes(keyword.toLowerCase()));
+          });
+          if (matchingStores.length > 0) {
+            filteredStores = matchingStores.join(", ");
+          }
+        }
+        // Falls passende Märkte gefunden wurden, diese nutzen; ansonsten den Produktnamen
+        let displayText = filteredStores !== "" ? filteredStores : productName;
+        // Übersetze den angezeigten Text mithilfe des Fallback-Mechanismus
+        displayText = await fallbackTranslate(displayText);
+        // Anzeige des Produktergebnisses in einer Bootstrap-Alert-Box
         document.getElementById('result').innerHTML = `
           <div class="alert alert-success">
             <h5>Erfolgreich gescannt!</h5>
-            <p class="mb-0">Produkt: <strong>${productName}</strong></p>
+            <p class="mb-0">Produkt: <strong>${displayText}</strong></p>
             <p class="mb-0 mt-2">Barcode: ${decodedText}</p>
           </div>
         `;
@@ -437,7 +453,7 @@
       } catch (error) {
         console.error(error);
         showStatus("Fehler bei der Produktsuche", "error-status");
-        // Zeige den Button zum manuellen Neustart des Scanners auch im Fehlerfall
+        // Zeige den Neustart-Button auch im Fehlerfall
         document.getElementById('restartBtnContainer').style.display = "block";
       }
     }
@@ -450,7 +466,7 @@
     }
 
     // Event-Listener für den Neustart-Button
-    document.getElementById('restartBtn').addEventListener('click', function () {
+    document.getElementById('restartBtn').addEventListener('click', function() {
       // Leere Status- und Ergebnisanzeige
       document.getElementById('scanStatus').style.display = 'none';
       document.getElementById('result').innerHTML = "";
