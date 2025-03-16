@@ -360,6 +360,8 @@
   <script>
     let html5QrCode = null;
     let isScanning = false;
+    // Globale Variable, um die letzte Scan-Daten zu speichern
+    let lastScanData = null;
 
     // Fallback-Übersetzung: Iteriert über eine Liste von Quellsprachen
     async function fallbackTranslate(text) {
@@ -460,6 +462,13 @@
         // Übersetze beide Texte
         let translatedProductName = await fallbackTranslate(productName);
         let translatedStores = filteredStores ? await fallbackTranslate(filteredStores) : "";
+        // Speichere die Scan-Daten global
+        lastScanData = {
+          barcode: decodedText,
+          originalProductName: productName,
+          displayedProductName: translatedProductName,
+          displayedStores: translatedStores
+        };
         // Erstelle den Anzeigeinhalt – Produktname und Stores (sofern vorhanden)
         let displayHTML = `
           <div class="alert alert-success">
@@ -478,7 +487,7 @@
       } catch (error) {
         console.error(error);
         showStatus("Fehler bei der Produktsuche", "error-status");
-        // Zeige den Neustart-Button auch im Fehlerfall
+        // Zeige den Neustart-Button und das Feedbackformular auch im Fehlerfall
         document.getElementById('restartBtnContainer').style.display = "block";
         document.getElementById('feedbackForm').style.display = "block";
       }
@@ -508,27 +517,31 @@
       const correctedName = document.getElementById('correctProductName').value;
       const correctedStores = document.getElementById('correctStores').value;
       const comments = document.getElementById('feedbackComments').value;
-      const decodedBarcode = document.querySelector('#result p:nth-child(3)').innerText.replace("Barcode: ", "");
-      
-      const feedbackData = {
-        barcode: decodedBarcode,
-        correctedName: correctedName,
+      if (!lastScanData) {
+        document.getElementById('feedbackResponse').innerHTML = '<div class="alert alert-danger">Kein Scan-Datensatz vorhanden.</div>';
+        return;
+      }
+      // Erstelle das Payload-Objekt
+      const payload = {
+        barcode: lastScanData.barcode,
+        originalProductName: lastScanData.originalProductName,
+        displayedProductName: lastScanData.displayedProductName,
+        displayedStores: lastScanData.displayedStores,
+        correctedProductName: correctedName,
         correctedStores: correctedStores,
         comments: comments
       };
-
-      // Dummy-POST an einen Beispiel-Endpunkt (hier "https://example.com/feedback")
+      // Sende das Feedback per POST an den definierten Endpunkt
       try {
-        // Hier erfolgt der POST – in der Praxis muss hier dein eigener Endpunkt verwendet werden.
-        const response = await fetch("https://example.com/feedback", {
+        const response = await fetch("https://tobwani.github.io/MoveX_Scanner/feedback", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify(feedbackData)
+          body: JSON.stringify(payload)
         });
         if (response.ok) {
-          document.getElementById('feedbackResponse').innerHTML = '<div class="alert alert-success">Danke für dein Feedback!</div>';
+          document.getElementById('feedbackResponse').innerHTML = '<div class="alert alert-success">Feedback erfolgreich abgesendet.</div>';
           // Formularfelder leeren
           document.getElementById('feedbackFormElement').reset();
         } else {
