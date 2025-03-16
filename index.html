@@ -259,7 +259,8 @@
       </div>
       <div class="row justify-content-center">
         <div class="col-lg-8 text-center">
-          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
+          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt
+            sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
         </div>
       </div>
     </div>
@@ -341,126 +342,132 @@
     let html5QrCode = null;
     let isScanning = false;
 
-    // Fallback-Übersetzung: Iteriert über eine Liste von Quellsprachen
+    // Übersetzungsfunktion mit Fallback-Logik
     async function fallbackTranslate(text) {
-      const languageCodes = ["en", "es"]; // Weitere Sprachen können hier ergänzt werden
+      const languageCodes = ["en", "es"];
       for (let lang of languageCodes) {
         let translated = await translateWithSource(text, lang);
         if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
           return translated;
         }
       }
-      return text; // Falls keine Übersetzung einen Unterschied macht, Originaltext zurückgeben
+      return text;
     }
 
-    // Übersetzungsfunktion für eine bestimmte Quellsprache mit der MyMemory API
+    // MyMemory API Übersetzung
     function translateWithSource(text, sourceLang) {
-      const url = "https://api.mymemory.translated.net/get?q=" 
-                  + encodeURIComponent(text) 
-                  + "&langpair=" + sourceLang + "|de";
+      const url = "https://api.mymemory.translated.net/get?q=" +
+        encodeURIComponent(text) +
+        "&langpair=" + sourceLang + "|de";
       return fetch(url)
         .then(response => response.json())
-        .then(data => {
-          if (data.responseData && data.responseData.translatedText) {
-            return data.responseData.translatedText;
-          }
-          return text;
-        })
-        .catch(error => {
-          console.error("Übersetzungsfehler (" + sourceLang + "):", error);
-          return text;
-        });
+        .then(data => data.responseData?.translatedText || text)
+        .catch(() => text);
     }
 
-    // Funktion, um Produktinformationen von Open Food Facts abzurufen
+    // Produktinformationen von Open Food Facts
     async function getProductInfo(decodedText) {
-      const response = await fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json');
+      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
       const data = await response.json();
       if (data.status === 1) {
         return {
           productName: data.product.product_name || "Produktname nicht verfügbar",
           stores: data.product.stores || ""
         };
-      } else {
-        throw new Error("Produkt nicht gefunden");
       }
+      throw new Error("Produkt nicht gefunden");
     }
 
-    // Initialisiert den Scanner
+    // Scanner initialisierung
     async function initScanner() {
       try {
         html5QrCode = new Html5Qrcode("reader");
-        const cameras = await Html5Qrcode.getCameras();
-        const backCamera = cameras.find(c => c.label.toLowerCase().includes("back")) || cameras[0];
+        const constraints = { video: { facingMode: "environment" } }; // Rückkamera erzwingen
+
         await html5QrCode.start(
-          backCamera.id,
+          constraints,
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: 1,
             focusMode: "continuous"
           },
-          (decodedText) => handleScanSuccess(decodedText),
-          (errMessage) => { } // Optionaler Fehlerhandler
+          decodedText => handleScanSuccess(decodedText),
+          error => console.log("Scan Fehler:", error)
         );
+
         isScanning = true;
         showStatus("Scanner bereit...", "scanning-status");
-        // Verstecke den Neustart-Button
         document.getElementById('restartBtnContainer').style.display = "none";
       } catch (error) {
-        console.error("Scanner Fehler:", error);
-        showStatus("Kamera-Zugriff fehlgeschlagen", "error-status");
+        console.error("Rückkamera Fehler:", error);
+        showStatus("Wechsle zu Frontkamera...", "scanning-status");
+        try {
+          // Fallback zur Frontkamera
+          await html5QrCode.start(
+            { video: { facingMode: "user" } },
+            { /* gleiche Konfiguration */ },
+            decodedText => handleScanSuccess(decodedText),
+            error => console.log("Scan Fehler:", error)
+          );
+          isScanning = true;
+        } catch (fallbackError) {
+          console.error("Kamera Fehler:", fallbackError);
+          showStatus("Kamera-Zugriff fehlgeschlagen", "error-status");
+        }
       }
     }
 
+    // Scan Erfolgshandler
     async function handleScanSuccess(decodedText) {
       if (!isScanning) return;
       isScanning = false;
+
       try {
         showStatus("Produkt wird gesucht...", "scanning-status");
-        // Stoppe den Scanner vollständig
         await html5QrCode.stop();
-        // Produktinformationen abrufen
-        let productData = await getProductInfo(decodedText);
-        let productName = productData.productName;
-        let stores = productData.stores;
-        let filteredStores = "";
-        if (stores) {
-          // Auftrennen der Stores (Trennzeichen: Komma oder Semikolon)
-          let storeArray = stores.split(/[;,]+/).map(s => s.trim());
-          const keywords = ["Lidl", "Rewe", "Edeka"];
-          let matchingStores = storeArray.filter(store => {
-            return keywords.some(keyword => store.toLowerCase().includes(keyword.toLowerCase()));
-          });
-          if (matchingStores.length > 0) {
-            filteredStores = matchingStores.join(", ");
-          }
-        }
-        // Übersetze beide Texte
-        let translatedProductName = await fallbackTranslate(productName);
-        let translatedStores = filteredStores ? await fallbackTranslate(filteredStores) : "";
-        // Erstelle den Anzeigeinhalt – Produktname und Stores (sofern vorhanden)
-        let displayHTML = `
-          <div class="alert alert-success">
-            <h5>Erfolgreich gescannt!</h5>
-            <p class="mb-0"><strong>Produkt:</strong> ${translatedProductName}</p>`;
-        if (translatedStores !== "") {
-          displayHTML += `<p class="mb-0 mt-2"><strong>Verkauft bei:</strong> ${translatedStores}</p>`;
-        }
-        displayHTML += `<p class="mb-0 mt-2"><strong>Barcode:</strong> ${decodedText}</p>
-          </div>`;
-        document.getElementById('result').innerHTML = displayHTML;
-        showStatus("Scan abgeschlossen.", "scanning-status");
-        // Zeige den Button zum manuellen Neustart des Scanners
+
+        const productData = await getProductInfo(decodedText);
+        const translatedName = await fallbackTranslate(productData.productName);
+        const stores = productData.stores
+          ? await processStores(productData.stores)
+          : "";
+
+        displayResult(decodedText, translatedName, stores);
         document.getElementById('restartBtnContainer').style.display = "block";
       } catch (error) {
         console.error(error);
         showStatus("Fehler bei der Produktsuche", "error-status");
-        // Zeige den Neustart-Button auch im Fehlerfall
         document.getElementById('restartBtnContainer').style.display = "block";
       }
     }
 
+    // Verarbeite Geschäftsinformationen
+    async function processStores(stores) {
+      const storeArray = stores.split(/[;,]+/).map(s => s.trim());
+      const filtered = storeArray.filter(store =>
+        ["Lidl", "Rewe", "Edeka"].some(kw =>
+          store.toLowerCase().includes(kw.toLowerCase())
+        ));
+      return filtered.length > 0
+        ? await fallbackTranslate(filtered.join(", "))
+        : "";
+    }
+
+    // Ergebnis anzeigen
+    function displayResult(barcode, productName, stores) {
+      let html = `
+        <div class="alert alert-success">
+          <h5>Erfolgreich gescannt!</h5>
+          <p class="mb-0"><strong>Produkt:</strong> ${productName}</p>
+          ${stores ? `<p class="mb-0 mt-2"><strong>Verkauft bei:</strong> ${stores}</p>` : ""}
+          <p class="mb-0 mt-2"><strong>Barcode:</strong> ${barcode}</p>
+        </div>`;
+      document.getElementById('result').innerHTML = html;
+      showStatus("Scan abgeschlossen.", "scanning-status");
+    }
+
+    // Statusmeldungen
     function showStatus(message, cssClass) {
       const statusElement = document.getElementById('scanStatus');
       statusElement.style.display = 'block';
@@ -468,17 +475,13 @@
       statusElement.textContent = message;
     }
 
-    // Event-Listener für den Neustart-Button
-    document.getElementById('restartBtn').addEventListener('click', function() {
-      // Leere Status- und Ergebnisanzeige
+    // Event Listener
+    document.addEventListener('DOMContentLoaded', initScanner);
+    document.getElementById('restartBtn').addEventListener('click', () => {
       document.getElementById('scanStatus').style.display = 'none';
       document.getElementById('result').innerHTML = "";
-      // Scanner neu initialisieren
       initScanner();
     });
-
-    // Initialisierung beim Laden der Seite
-    document.addEventListener('DOMContentLoaded', initScanner);
   </script>
 </body>
 
