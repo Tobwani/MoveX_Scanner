@@ -346,7 +346,7 @@
     async function fallbackTranslate(text) {
       const languageCodes = ["en", "es"];
       try {
-        for (let lang of languageCodes) {
+        for (const lang of languageCodes) {
           const translated = await translateWithSource(text, lang);
           if (translated.toLowerCase() !== text.toLowerCase()) {
             return translated;
@@ -385,21 +385,34 @@
       }
     }
 
-    // Kameraauswahl
-    async function selectCamera() {
+    // Kameraerkennung
+    async function getBackCamera() {
       try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cameras = devices.filter(device => device.kind === 'videoinput');
 
-        // Priorität: 1. Rückkamera mit environment label, 2. Letzte Kamera
-        const backCamera = cameras.find(c => c.label.includes("back") ||
-          cameras.find(c => c.label.includes("environment")) ||
-          cameras[cameras.length - 1]);
+        const backKeywords = ['back', 'rear', 'environment', 'rück', 'hinten'];
+        const priorityOrder = [
+          d => backKeywords.some(kw => d.label.toLowerCase().includes(kw)),
+          d => d.label.includes("0"),
+          d => !d.label.toLowerCase().includes("front")
+        ];
 
-        return backCamera?.deviceId || null;
+        // Sortiere Kameras nach Priorität
+        const sortedCameras = cameras.sort((a, b) => {
+          for (const condition of priorityOrder) {
+            const aMatch = condition(a) ? 1 : 0;
+            const bMatch = condition(b) ? 1 : 0;
+            if (aMatch !== bMatch) return bMatch - aMatch;
+          }
+          return 0;
+        });
+
+        return sortedCameras[0]?.deviceId || 'environment';
       } catch (error) {
-        console.error("Kameraerkennung fehlgeschlagen:", error);
-        return null;
+        console.error('Kameraerkennung fehlgeschlagen:', error);
+        return 'environment';
       }
     }
 
@@ -410,9 +423,9 @@
           await html5QrCode.stop();
         }
 
-        showStatus("Kamera wird initialisiert...", "scanning-status");
+        showStatus('Initialisiere Rückkamera...', 'scanning-status');
 
-        const cameraId = await selectCamera();
+        html5QrCode = new Html5Qrcode("reader");
         const config = {
           fps: 10,
           qrbox: { width: 250, height: 250 },
@@ -420,45 +433,54 @@
           focusMode: "continuous"
         };
 
-        html5QrCode = new Html5Qrcode("reader");
-
+        // 1. Versuch: Explizite Rückkamera-ID
+        const backCameraId = await getBackCamera();
         await html5QrCode.start(
-          cameraId || { facingMode: "environment" },
+          backCameraId,
           config,
           decodedText => handleScanSuccess(decodedText),
           error => console.log("Scan-Fehler:", error)
         );
 
         isScanning = true;
-        showStatus("Scanner bereit", "scanning-status");
+        showStatus('Scanner bereit (Rückkamera)', 'scanning-status');
         document.getElementById('restartBtnContainer').style.display = "none";
-      } catch (error) {
-        console.error("Scanner-Fehler:", error);
-        handleCameraError(error);
-      }
-    }
+      } catch (initialError) {
+        console.error('Initialer Kamerafehler:', initialError);
+        try {
+          // 2. Versuch: Environment Facing Mode
+          await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            decodedText => handleScanSuccess(decodedText),
+            error => console.log("Scan-Fehler:", error)
+          );
+          isScanning = true;
+          showStatus('Scanner bereit (Umgebungskamera)', 'scanning-status');
+        } catch (environmentError) {
+          console.error('Environment-Fehler:', environmentError);
+          try {
+            // 3. Versuch: Letzte verfügbare Kamera
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cameras = devices.filter(device => device.kind === 'videoinput');
+            const lastCamera = cameras.pop()?.deviceId;
 
-    // Fehlerbehandlung
-    async function handleCameraError(initialError) {
-      try {
-        // Fallback zu generischer Kamerauswahl
-        await html5QrCode.start(
-          { facingMode: "user" },
-          {
-            fps: 10,
-            qrbox: { width: 250, height: 250 },
-            aspectRatio: 1,
-            focusMode: "continuous"
-          },
-          decodedText => handleScanSuccess(decodedText),
-          error => console.log("Scan-Fehler:", error)
-        );
-        isScanning = true;
-        showStatus("Scanner bereit (Frontkamera)", "scanning-status");
-      } catch (fallbackError) {
-        console.error("Fallback-Fehler:", fallbackError);
-        showStatus("Kamera-Zugriff fehlgeschlagen. Bitte Berechtigungen überprüfen und Seite neu laden.", "error-status");
-        document.getElementById('restartBtnContainer').style.display = "block";
+            if (lastCamera) {
+              await html5QrCode.start(
+                lastCamera,
+                config,
+                decodedText => handleScanSuccess(decodedText),
+                error => console.log("Scan-Fehler:", error)
+              );
+              isScanning = true;
+              showStatus('Scanner bereit (Standardkamera)', 'scanning-status');
+            }
+          } catch (finalError) {
+            console.error('Finaler Kamera-Fehler:', finalError);
+            showStatus('Kamera-Zugriff fehlgeschlagen. Bitte Berechtigungen überprüfen!', 'error-status');
+            document.getElementById('restartBtnContainer').style.display = "block";
+          }
+        }
       }
     }
 
@@ -496,7 +518,8 @@
         const filtered = storeArray.filter(store =>
           ["Lidl", "Rewe", "Edeka"].some(kw =>
             store.toLowerCase().includes(kw.toLowerCase())
-          ));
+          )
+        );
         return filtered.length > 0
           ? await fallbackTranslate(filtered.join(", "))
           : "";
@@ -529,12 +552,12 @@
 
     // Event-Listener
     document.addEventListener('DOMContentLoaded', () => {
-      // Berechtigungsprüfung
       navigator.permissions.query({ name: 'camera' }).then(permissionStatus => {
-        if (permissionStatus.state === 'denied') {
-          showStatus("Kamera-Zugriff blockiert. Bitte Berechtigungen in den Browsereinstellungen erlauben.", "error-status");
-        } else {
+        if (permissionStatus.state === 'granted') {
           initScanner();
+        } else {
+          showStatus("Bitte Kamera-Zugriff erlauben ➡️", "error-status");
+          document.getElementById('restartBtnContainer').style.display = "block";
         }
       });
     });
