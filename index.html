@@ -426,6 +426,7 @@
         let stores = productData.stores;
         let filteredStores = "";
         if (stores) {
+          // Auftrennen der Stores (Trennzeichen: Komma oder Semikolon)
           let storeArray = stores.split(/[;,]+/).map(s => s.trim());
           const keywords = ["Lidl", "Rewe", "Edeka"];
           let matchingStores = storeArray.filter(store => {
@@ -435,18 +436,20 @@
             filteredStores = matchingStores.join(", ");
           }
         }
-        // Falls passende Märkte gefunden wurden, diese nutzen; ansonsten den Produktnamen
-        let displayText = filteredStores !== "" ? filteredStores : productName;
-        // Übersetze den angezeigten Text mithilfe des Fallback-Mechanismus
-        displayText = await fallbackTranslate(displayText);
-        // Anzeige des Produktergebnisses in einer Bootstrap-Alert-Box
-        document.getElementById('result').innerHTML = `
+        // Übersetze beide Texte
+        let translatedProductName = await fallbackTranslate(productName);
+        let translatedStores = filteredStores ? await fallbackTranslate(filteredStores) : "";
+        // Erstelle den Anzeigeinhalt – Produktname und, falls vorhanden, die Stores
+        let displayHTML = `
           <div class="alert alert-success">
             <h5>Erfolgreich gescannt!</h5>
-            <p class="mb-0">Produkt: <strong>${displayText}</strong></p>
-            <p class="mb-0 mt-2">Barcode: ${decodedText}</p>
-          </div>
-        `;
+            <p class="mb-0"><strong>Produkt:</strong> ${translatedProductName}</p>`;
+        if (translatedStores !== "") {
+          displayHTML += `<p class="mb-0 mt-2"><strong>Verkauft bei:</strong> ${translatedStores}</p>`;
+        }
+        displayHTML += `<p class="mb-0 mt-2"><strong>Barcode:</strong> ${decodedText}</p>
+          </div>`;
+        document.getElementById('result').innerHTML = displayHTML;
         showStatus("Scan abgeschlossen.", "scanning-status");
         // Zeige den Button zum manuellen Neustart des Scanners
         document.getElementById('restartBtnContainer').style.display = "block";
