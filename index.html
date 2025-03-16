@@ -342,50 +342,108 @@
     let html5QrCode = null;
     let isScanning = false;
 
-    // Übersetzungsfunktion mit Fallback-Logik
+    // Übersetzungsfunktion
     async function fallbackTranslate(text) {
       const languageCodes = ["en", "es"];
-      for (let lang of languageCodes) {
-        let translated = await translateWithSource(text, lang);
-        if (translated.trim().toLowerCase() !== text.trim().toLowerCase()) {
-          return translated;
+      try {
+        for (let lang of languageCodes) {
+          const translated = await translateWithSource(text, lang);
+          if (translated.toLowerCase() !== text.toLowerCase()) {
+            return translated;
+          }
         }
+      } catch (error) {
+        console.error("Übersetzungsfehler:", error);
       }
       return text;
     }
 
-    // MyMemory API Übersetzung
+    // MyMemory API
     function translateWithSource(text, sourceLang) {
-      const url = "https://api.mymemory.translated.net/get?q=" +
-        encodeURIComponent(text) +
-        "&langpair=" + sourceLang + "|de";
-      return fetch(url)
+      return fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|de`
+      )
         .then(response => response.json())
         .then(data => data.responseData?.translatedText || text)
         .catch(() => text);
     }
 
-    // Produktinformationen von Open Food Facts
+    // Produktinformationen
     async function getProductInfo(decodedText) {
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
-      const data = await response.json();
-      if (data.status === 1) {
-        return {
-          productName: data.product.product_name || "Produktname nicht verfügbar",
-          stores: data.product.stores || ""
-        };
+      try {
+        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
+        const data = await response.json();
+        if (data.status === 1) {
+          return {
+            productName: data.product.product_name || "Produktname nicht verfügbar",
+            stores: data.product.stores || ""
+          };
+        }
+        throw new Error("Produkt nicht gefunden");
+      } catch (error) {
+        throw new Error("API-Fehler: " + error.message);
       }
-      throw new Error("Produkt nicht gefunden");
     }
 
-    // Scanner initialisierung
+    // Kameraauswahl
+    async function selectCamera() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+
+        // Priorität: 1. Rückkamera mit environment label, 2. Letzte Kamera
+        const backCamera = cameras.find(c => c.label.includes("back") ||
+          cameras.find(c => c.label.includes("environment")) ||
+          cameras[cameras.length - 1]);
+
+        return backCamera?.deviceId || null;
+      } catch (error) {
+        console.error("Kameraerkennung fehlgeschlagen:", error);
+        return null;
+      }
+    }
+
+    // Scanner initialisieren
     async function initScanner() {
       try {
+        if (html5QrCode?.isScanning) {
+          await html5QrCode.stop();
+        }
+
+        showStatus("Kamera wird initialisiert...", "scanning-status");
+
+        const cameraId = await selectCamera();
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1,
+          focusMode: "continuous"
+        };
+
         html5QrCode = new Html5Qrcode("reader");
-        const constraints = { video: { facingMode: "environment" } }; // Rückkamera erzwingen
 
         await html5QrCode.start(
-          constraints,
+          cameraId || { facingMode: "environment" },
+          config,
+          decodedText => handleScanSuccess(decodedText),
+          error => console.log("Scan-Fehler:", error)
+        );
+
+        isScanning = true;
+        showStatus("Scanner bereit", "scanning-status");
+        document.getElementById('restartBtnContainer').style.display = "none";
+      } catch (error) {
+        console.error("Scanner-Fehler:", error);
+        handleCameraError(error);
+      }
+    }
+
+    // Fehlerbehandlung
+    async function handleCameraError(initialError) {
+      try {
+        // Fallback zu generischer Kamerauswahl
+        await html5QrCode.start(
+          { facingMode: "user" },
           {
             fps: 10,
             qrbox: { width: 250, height: 250 },
@@ -393,90 +451,94 @@
             focusMode: "continuous"
           },
           decodedText => handleScanSuccess(decodedText),
-          error => console.log("Scan Fehler:", error)
+          error => console.log("Scan-Fehler:", error)
         );
-
         isScanning = true;
-        showStatus("Scanner bereit...", "scanning-status");
-        document.getElementById('restartBtnContainer').style.display = "none";
-      } catch (error) {
-        console.error("Rückkamera Fehler:", error);
-        showStatus("Wechsle zu Frontkamera...", "scanning-status");
-        try {
-          // Fallback zur Frontkamera
-          await html5QrCode.start(
-            { video: { facingMode: "user" } },
-            { /* gleiche Konfiguration */ },
-            decodedText => handleScanSuccess(decodedText),
-            error => console.log("Scan Fehler:", error)
-          );
-          isScanning = true;
-        } catch (fallbackError) {
-          console.error("Kamera Fehler:", fallbackError);
-          showStatus("Kamera-Zugriff fehlgeschlagen", "error-status");
-        }
+        showStatus("Scanner bereit (Frontkamera)", "scanning-status");
+      } catch (fallbackError) {
+        console.error("Fallback-Fehler:", fallbackError);
+        showStatus("Kamera-Zugriff fehlgeschlagen. Bitte Berechtigungen überprüfen und Seite neu laden.", "error-status");
+        document.getElementById('restartBtnContainer').style.display = "block";
       }
     }
 
-    // Scan Erfolgshandler
+    // Scan-Handler
     async function handleScanSuccess(decodedText) {
       if (!isScanning) return;
       isScanning = false;
 
       try {
-        showStatus("Produkt wird gesucht...", "scanning-status");
+        showStatus("Verarbeite Daten...", "scanning-status");
         await html5QrCode.stop();
 
         const productData = await getProductInfo(decodedText);
-        const translatedName = await fallbackTranslate(productData.productName);
-        const stores = productData.stores
-          ? await processStores(productData.stores)
-          : "";
+        const [translatedName, stores] = await Promise.all([
+          fallbackTranslate(productData.productName),
+          processStores(productData.stores)
+        ]);
 
         displayResult(decodedText, translatedName, stores);
-        document.getElementById('restartBtnContainer').style.display = "block";
       } catch (error) {
-        console.error(error);
-        showStatus("Fehler bei der Produktsuche", "error-status");
+        console.error("Verarbeitungsfehler:", error);
+        showStatus(error.message.includes("nicht gefunden")
+          ? "Produkt nicht in der Datenbank"
+          : "Verbindungsproblem", "error-status");
+      } finally {
         document.getElementById('restartBtnContainer').style.display = "block";
       }
     }
 
-    // Verarbeite Geschäftsinformationen
+    // Geschäftsverarbeitung
     async function processStores(stores) {
-      const storeArray = stores.split(/[;,]+/).map(s => s.trim());
-      const filtered = storeArray.filter(store =>
-        ["Lidl", "Rewe", "Edeka"].some(kw =>
-          store.toLowerCase().includes(kw.toLowerCase())
-        ));
-      return filtered.length > 0
-        ? await fallbackTranslate(filtered.join(", "))
-        : "";
+      if (!stores) return "";
+      try {
+        const storeArray = stores.split(/[;,]+/).map(s => s.trim());
+        const filtered = storeArray.filter(store =>
+          ["Lidl", "Rewe", "Edeka"].some(kw =>
+            store.toLowerCase().includes(kw.toLowerCase())
+          ));
+        return filtered.length > 0
+          ? await fallbackTranslate(filtered.join(", "))
+          : "";
+      } catch (error) {
+        console.error("Store-Verarbeitungsfehler:", error);
+        return "";
+      }
     }
 
     // Ergebnis anzeigen
     function displayResult(barcode, productName, stores) {
-      let html = `
+      const resultHTML = `
         <div class="alert alert-success">
           <h5>Erfolgreich gescannt!</h5>
-          <p class="mb-0"><strong>Produkt:</strong> ${productName}</p>
-          ${stores ? `<p class="mb-0 mt-2"><strong>Verkauft bei:</strong> ${stores}</p>` : ""}
-          <p class="mb-0 mt-2"><strong>Barcode:</strong> ${barcode}</p>
+          <p><strong>Produkt:</strong> ${productName}</p>
+          ${stores ? `<p><strong>Verfügbar bei:</strong> ${stores}</p>` : ""}
+          <p><strong>Barcode:</strong> ${barcode}</p>
         </div>`;
-      document.getElementById('result').innerHTML = html;
-      showStatus("Scan abgeschlossen.", "scanning-status");
+      document.getElementById('result').innerHTML = resultHTML;
+      showStatus("Scan abgeschlossen", "scanning-status");
     }
 
-    // Statusmeldungen
+    // UI Funktionen
     function showStatus(message, cssClass) {
       const statusElement = document.getElementById('scanStatus');
-      statusElement.style.display = 'block';
-      statusElement.className = cssClass;
+      statusElement.className = `${cssClass} p-3 mb-3 rounded`;
       statusElement.textContent = message;
+      statusElement.style.display = "block";
     }
 
-    // Event Listener
-    document.addEventListener('DOMContentLoaded', initScanner);
+    // Event-Listener
+    document.addEventListener('DOMContentLoaded', () => {
+      // Berechtigungsprüfung
+      navigator.permissions.query({ name: 'camera' }).then(permissionStatus => {
+        if (permissionStatus.state === 'denied') {
+          showStatus("Kamera-Zugriff blockiert. Bitte Berechtigungen in den Browsereinstellungen erlauben.", "error-status");
+        } else {
+          initScanner();
+        }
+      });
+    });
+
     document.getElementById('restartBtn').addEventListener('click', () => {
       document.getElementById('scanStatus').style.display = 'none';
       document.getElementById('result').innerHTML = "";
