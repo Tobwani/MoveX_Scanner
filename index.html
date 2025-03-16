@@ -132,9 +132,10 @@
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      width: 100% !important;
     }
 
-    /* Zusätzliches Feedback-Element */
+    /* Status-Meldung für den Scanner */
     #scanStatus {
       text-align: center;
       padding: 1rem;
@@ -229,15 +230,6 @@
     h2 {
       font-size: 1.8rem;
     }
-
-    /* Scanner Anpassungen */
-    #reader {
-      width: 100% !important;
-    }
-
-    #reader__dashboard_section_csr {
-      padding: 10px !important;
-    }
   </style>
 </head>
 
@@ -282,8 +274,7 @@
       </div>
       <div class="row justify-content-center">
         <div class="col-lg-8 text-center">
-          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt
-            sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
+          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
         </div>
       </div>
     </div>
@@ -330,9 +321,8 @@
           <p class="mb-4">Scanne deine Produkte für automatische Informationen und Empfehlungen</p>
         </div>
         <div id="reader"></div>
-        <div id="loadingSpinner" class="spinner-border text-primary mt-4" role="status">
-          <span class="sr-only">Lädt...</span>
-        </div>
+        <!-- Hier den Status-Bereich hinzufügen -->
+        <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
       </div>
     </div>
@@ -361,12 +351,23 @@
     let html5QrCode = null;
     let isScanning = false;
 
+    // Funktion, um Produktinformationen von Open Food Facts abzurufen
+    async function getProductInfo(decodedText) {
+      const response = await fetch('https://world.openfoodfacts.org/api/v0/product/' + decodedText + '.json');
+      const data = await response.json();
+      if (data.status === 1) {
+        return data.product.product_name || "Produktname nicht verfügbar";
+      } else {
+        throw new Error("Produkt nicht gefunden");
+      }
+    }
+
     async function initScanner() {
       try {
         html5QrCode = new Html5Qrcode("reader");
 
         const cameras = await Html5Qrcode.getCameras();
-        const backCamera = cameras.find(c => c.label.includes("back")) || cameras[0];
+        const backCamera = cameras.find(c => c.label.toLowerCase().includes("back")) || cameras[0];
 
         await html5QrCode.start(
           backCamera.id,
@@ -377,7 +378,7 @@
             focusMode: "continuous"
           },
           (decodedText) => handleScanSuccess(decodedText),
-          () => { } // Verbesserte Fehlerbehandlung
+          () => { } // Fehlerhandler kann hier erweitert werden
         );
 
         isScanning = true;
@@ -395,11 +396,12 @@
       try {
         showStatus("Produkt wird gesucht...", "scanning-status");
 
-        // Scanner vorübergehend pausieren
+        // Scanner pausieren
         await html5QrCode.pause();
 
         const productName = await getProductInfo(decodedText);
 
+        // Anzeige des Produktnamens in einer Bootstrap-Alert-Box
         document.getElementById('result').innerHTML = `
           <div class="alert alert-success">
             <h5>Erfolgreich gescannt!</h5>
@@ -435,10 +437,9 @@
       }
     }
 
-    // Initialisierung beim Laden
+    // Initialisierung beim Laden der Seite
     document.addEventListener('DOMContentLoaded', initScanner);
   </script>
-
 </body>
 
 </html>
