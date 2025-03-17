@@ -392,7 +392,7 @@
       try {
         const constraints = {
           video: {
-            facingMode: { exact: "environment" },
+            facingMode: "environment",
             width: { ideal: isIOS ? 1024 : 1280 },
             height: { ideal: isIOS ? 768 : 720 },
             frameRate: { ideal: 30 }
