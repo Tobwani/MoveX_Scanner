@@ -528,6 +528,7 @@
           <p><strong>Barcode:</strong> ${barcode}</p>
         </div>`;
       document.getElementById("result").innerHTML = resultHTML;
+      showStatus("Erfolgreich gescannt", "scanning-status");
     }
 
     function showStatus(message, cssClass) {
