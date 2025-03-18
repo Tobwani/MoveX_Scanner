@@ -134,61 +134,36 @@
       width: 100% !important;
     }
 
-    /* Überarbeitete iOS-Meldung */
+    /* iOS-Meldung im professionellen Design */
     .ios-message {
-      background: #fff;
-      color: #374151;
+      background: #ffffff;
+      color: #2d3748;
       padding: 2rem;
       border-radius: 12px;
       margin: 2rem auto;
       max-width: 600px;
       text-align: center;
-      border: 1px solid #e5e7eb;
+      border: 1px solid #e2e8f0;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-      position: relative;
+      animation: subtleFade 0.5s ease-out;
     }
 
-    .ios-message::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #2CB191 30%, #e5e7eb 100%);
+    .ios-message h3 {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #1a202c;
     }
 
-    .ios-platforms {
-      display: flex;
-      justify-content: center;
-      gap: 1.5rem;
+    .ios-message p {
+      color: #4a5568;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
+    .ios-support-list {
+      text-align: left;
       margin: 1.5rem 0;
-    }
-
-    .platform-item {
-      text-align: center;
-      padding: 0.5rem;
-    }
-
-    .platform-item i {
-      font-size: 1.75rem;
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    .ios-progress {
-      height: 4px;
-      background: #e5e7eb;
-      border-radius: 2px;
-      margin: 1.5rem 0;
-      overflow: hidden;
-    }
-
-    .ios-progress-bar {
-      width: 65%;
-      height: 100%;
-      background: #2CB191;
-      transition: width 0.5s ease;
+      padding-left: 1.5rem;
     }
 
     /* Status-Meldung */
@@ -382,33 +357,19 @@
           <p class="mb-4">Scanne deine Produkte für automatische Informationen und Empfehlungen</p>
         </div>
 
-        <!-- Neue iOS Meldung -->
+        <!-- iOS Meldung -->
         <div class="ios-message" id="iosMessage" style="display: none;">
-          <div class="ios-platforms">
-            <div class="platform-item">
-              <i class="fab fa-apple text-muted"></i>
-              <div class="text-sm">In Entwicklung</div>
-            </div>
-            <div class="platform-item">
-              <i class="fab fa-android text-success"></i>
-              <div class="text-sm">Voll unterstützt</div>
-            </div>
-            <div class="platform-item">
-              <i class="fas fa-desktop text-success"></i>
-              <div class="text-sm">Voll unterstützt</div>
-            </div>
+          <h3>Aktive iOS-Optimierung</h3>
+          <p>Wir verbessern aktuell die Scanner-Funktion für Apple-Geräte.</p>
+
+          <div class="ios-support-list">
+            <p>✔️ Voll unterstützt: Android & Desktop</p>
+            <p>🛠️ In Entwicklung: iOS-Version</p>
           </div>
 
-          <h3 class="h5">iOS Optimierung läuft</h3>
-          <p class="text-muted">Aktuell optimieren wir die iOS-Version für beste Performance.</p>
-
-          <div class="ios-progress">
-            <div class="ios-progress-bar"></div>
-          </div>
-
-          <p class="text-sm text-muted mb-0">
-            Android & Desktop: Voll funktionsfähig<br>
-            Geplanter Abschluss: Q1 2025
+          <p class="text-muted small">
+            Bitte verwende vorübergehend ein Android-Gerät oder Desktop-Browser<br>
+            Geplante Verfügbarkeit: Q3 2025
           </p>
         </div>
 
@@ -643,6 +604,7 @@
           <p><strong>Barcode:</strong> ${barcode}</p>
         </div>`;
       document.getElementById("result").innerHTML = resultHTML;
+      showStatus("Produkt erfolgreich gescannt!", "scanning-status");
     }
 
     function showStatus(message, cssClass) {
