@@ -134,20 +134,18 @@
       width: 100% !important;
     }
 
-    /* Geänderte iOS-Meldung */
+    /* Überarbeitete iOS-Meldung */
     .ios-message {
-      background: #f8f9fa;
-      color: #2d3748;
+      background: #fff;
+      color: #374151;
       padding: 2rem;
       border-radius: 12px;
       margin: 2rem auto;
       max-width: 600px;
       text-align: center;
-      border: 1px solid #e2e8f0;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-      animation: subtleFade 0.5s ease-out;
+      border: 1px solid #e5e7eb;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
       position: relative;
-      overflow: hidden;
     }
 
     .ios-message::before {
@@ -157,26 +155,40 @@
       left: 0;
       right: 0;
       height: 4px;
-      background: linear-gradient(90deg, #2CB191 0%, #38b2ac 100%);
+      background: linear-gradient(90deg, #2CB191 30%, #e5e7eb 100%);
     }
 
-    .ios-message i {
-      font-size: 2rem;
-      color: #2CB191;
-      margin-bottom: 1rem;
+    .ios-platforms {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .platform-item {
+      text-align: center;
+      padding: 0.5rem;
+    }
+
+    .platform-item i {
+      font-size: 1.75rem;
       display: block;
+      margin-bottom: 0.5rem;
     }
 
-    .ios-message h3 {
-      font-weight: 600;
-      margin: 1rem 0;
-      color: #1a202c;
+    .ios-progress {
+      height: 4px;
+      background: #e5e7eb;
+      border-radius: 2px;
+      margin: 1.5rem 0;
+      overflow: hidden;
     }
 
-    .ios-message p {
-      color: #4a5568;
-      line-height: 1.6;
-      margin-bottom: 1rem;
+    .ios-progress-bar {
+      width: 65%;
+      height: 100%;
+      background: #2CB191;
+      transition: width 0.5s ease;
     }
 
     /* Status-Meldung */
@@ -372,17 +384,35 @@
 
         <!-- Neue iOS Meldung -->
         <div class="ios-message" id="iosMessage" style="display: none;">
-          <i class="fas fa-mobile-alt"></i>
-          <h3>Mobile Optimierung in Entwicklung</h3>
-          <p>Für die beste Nutzererfahrung empfehlen wir aktuell die Verwendung eines Desktop-Gerätes.</p>
-          <p>Unsere Entwickler arbeiten mit Hochdruck an der mobilen Version - vielen Dank für Ihr Verständnis.</p>
-          <div class="mt-3 text-xs text-gray-500">
-            <i class="fas fa-tools"></i>
-            Geplanter Release: Dezember 2025
+          <div class="ios-platforms">
+            <div class="platform-item">
+              <i class="fab fa-apple text-muted"></i>
+              <div class="text-sm">In Entwicklung</div>
+            </div>
+            <div class="platform-item">
+              <i class="fab fa-android text-success"></i>
+              <div class="text-sm">Voll unterstützt</div>
+            </div>
+            <div class="platform-item">
+              <i class="fas fa-desktop text-success"></i>
+              <div class="text-sm">Voll unterstützt</div>
+            </div>
           </div>
+
+          <h3 class="h5">iOS Optimierung läuft</h3>
+          <p class="text-muted">Aktuell optimieren wir die iOS-Version für beste Performance.</p>
+
+          <div class="ios-progress">
+            <div class="ios-progress-bar"></div>
+          </div>
+
+          <p class="text-sm text-muted mb-0">
+            Android & Desktop: Voll funktionsfähig<br>
+            Geplanter Abschluss: Q1 2025
+          </p>
         </div>
 
-        <!-- Restlicher Code unverändert -->
+        <!-- Rest unverändert -->
         <div id="reader"></div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
