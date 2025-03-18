@@ -134,26 +134,49 @@
       width: 100% !important;
     }
 
-    /* iOS Meldung */
+    /* Geänderte iOS-Meldung */
     .ios-message {
-      background: linear-gradient(145deg, #2CB191dd, #2CB191);
-      color: white;
+      background: #f8f9fa;
+      color: #2d3748;
       padding: 2rem;
-      border-radius: 16px;
+      border-radius: 12px;
       margin: 2rem auto;
       max-width: 600px;
       text-align: center;
-      animation: fadeInUp 0.8s ease, pulse 2s infinite;
-      box-shadow: 0 4px 30px rgba(44, 177, 145, 0.3);
-      border: 2px solid #2CB191;
-      display: none;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      animation: subtleFade 0.5s ease-out;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ios-message::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #2CB191 0%, #38b2ac 100%);
     }
 
     .ios-message i {
-      font-size: 2.5rem;
+      font-size: 2rem;
+      color: #2CB191;
       margin-bottom: 1rem;
       display: block;
-      animation: bounce 1.5s infinite;
+    }
+
+    .ios-message h3 {
+      font-weight: 600;
+      margin: 1rem 0;
+      color: #1a202c;
+    }
+
+    .ios-message p {
+      color: #4a5568;
+      line-height: 1.6;
+      margin-bottom: 1rem;
     }
 
     /* Status-Meldung */
@@ -204,26 +227,16 @@
     }
 
     /* Animationen */
-    @keyframes fadeInUp {
+    @keyframes subtleFade {
       from {
         opacity: 0;
-        transform: translateY(20px);
+        transform: translateY(10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
       }
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.02); }
-      100% { transform: scale(1); }
-    }
-
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
     }
 
     @media (max-width: 768px) {
@@ -356,19 +369,20 @@
           <h2>Produkt Scanner</h2>
           <p class="mb-4">Scanne deine Produkte für automatische Informationen und Empfehlungen</p>
         </div>
-        
-        <!-- iOS Meldung -->
-        <div class="ios-message" id="iosMessage">
-          <i class="fab fa-apple"></i>
-          <h3>iOS Support in Arbeit 🛠️</h3>
-          <p>Leider unterstützen wir Apple Geräte momentan noch nicht vollständig.</p>
-          <p>Unser Team arbeitet intensiv an einer Lösung - bitte habe noch etwas Geduld!</p>
-          <div class="mt-3">
-            <i class="fas fa-sync-alt fa-spin"></i>
-            <small>Geplante Verfügbarkeit: Q4 2025</small>
+
+        <!-- Neue iOS Meldung -->
+        <div class="ios-message" id="iosMessage" style="display: none;">
+          <i class="fas fa-mobile-alt"></i>
+          <h3>Mobile Optimierung in Entwicklung</h3>
+          <p>Für die beste Nutzererfahrung empfehlen wir aktuell die Verwendung eines Desktop-Gerätes.</p>
+          <p>Unsere Entwickler arbeiten mit Hochdruck an der mobilen Version - vielen Dank für Ihr Verständnis.</p>
+          <div class="mt-3 text-xs text-gray-500">
+            <i class="fas fa-tools"></i>
+            Geplanter Release: Dezember 2025
           </div>
         </div>
 
+        <!-- Restlicher Code unverändert -->
         <div id="reader"></div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
@@ -402,13 +416,12 @@
     let html5QrCode = null;
     let isScanning = false;
     let cameraAccessGranted = false;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     // iOS Erkennung
     document.addEventListener("DOMContentLoaded", () => {
       if (isIOS) {
-        document.getElementById('reader').style.display = 'none';
-        document.getElementById('scanStatus').style.display = 'none';
+        document.querySelectorAll('#reader, #scanStatus').forEach(el => el.style.display = 'none');
         document.getElementById('iosMessage').style.display = 'block';
         return;
       }
@@ -638,4 +651,5 @@
     }
   </script>
 </body>
+
 </html>
