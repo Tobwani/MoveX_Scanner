@@ -134,15 +134,6 @@
       width: 100% !important;
     }
 
-    /* CSS-Anpassungen für iOS */
-    .ios-hint {
-      background: #f0f0f0;
-      border-left: 4px solid #2CB191;
-      padding: 1rem;
-      margin: 1rem 0;
-      display: none;
-    }
-
     /* Status-Meldung */
     #scanStatus {
       text-align: center;
@@ -190,19 +181,6 @@
       padding: 3rem 0;
     }
 
-    /* Animationen */
-    @keyframes subtleFade {
-      from {
-        opacity: 0;
-        transform: translateY(10px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
     @media (max-width: 768px) {
       .hero h1 {
         font-size: 2rem;
@@ -236,17 +214,11 @@
       .section {
         padding: 4rem 0;
       }
-
-      .ios-message {
-        padding: 1.5rem;
-        margin: 1rem;
-      }
     }
   </style>
 </head>
 
 <body>
-
   <!-- Navigation -->
   <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
@@ -334,9 +306,6 @@
           <button id="startScannerBtn" class="btn btn-custom mb-4">
             <i class="fas fa-camera"></i> Scanner starten
           </button>
-          <div class="ios-hint" id="iosHint" style="display: none;">
-            Halte das Gerät quer und positioniere den Barcode im Rahmen
-          </div>
         </div>
 
         <div id="reader"></div>
@@ -373,10 +342,11 @@
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     document.addEventListener("DOMContentLoaded", () => {
-      if (isIOS) document.getElementById('iosHint').style.display = 'block';
-
       document.getElementById("startScannerBtn").addEventListener('click', initScanner);
-      document.getElementById("restartBtn").addEventListener('click', initScanner);
+      document.getElementById("restartBtn").addEventListener('click', () => {
+        document.getElementById("result").innerHTML = '';
+        initScanner();
+      });
     });
 
     async function initScanner() {
@@ -473,7 +443,6 @@
       }
     }
 
-    // Restliche Funktionen bleiben gleich wie zuvor
     async function processStores(stores) {
       const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
       return stores.split(/[,;]+/)
