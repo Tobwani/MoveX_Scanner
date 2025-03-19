@@ -40,7 +40,18 @@
 
     scanner.render(success, error);
 
-    function success() { }
+    function success() {
+      document.getElementById('result').innerHTML = `
+      <h3>Erfolgreich gescannt</h3>
+      <p>${result}</p>
+      <br/> <br/>
+      <a href="index.html"> nochmal scannen</a>
+      `;
+
+      scanner.clear();
+
+      document.getElementById('reader').remove();
+    }
 
     function error() { }
   </script>
