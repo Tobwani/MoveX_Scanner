@@ -449,69 +449,95 @@
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     document.addEventListener("DOMContentLoaded", () => {
-      if (isIOS) {
-        document.getElementById('iosHint').style.display = 'block';
-        document.getElementById('iosControlPanel').style.display = 'block';
-        document.getElementById('normalControlPanel').style.display = 'none';
+      // Initial alle Steuerelemente verstecken
+      document.getElementById('iosControlPanel').style.display = 'none';
+      document.getElementById('normalControlPanel').style.display = 'none';
+      document.getElementById('iosHint').style.display = isIOS ? 'block' : 'none';
 
-        document.getElementById('stopScannerBtn').addEventListener('click', handleIOSStop);
-        document.getElementById('restartScannerBtn').addEventListener('click', handleIOSRestart);
-      } else {
-        document.getElementById('normalControlPanel').style.display = 'block';
+      // Event-Listener für Hauptbutton
+      document.getElementById("startScannerBtn").addEventListener('click', initScanner);
+
+      // Android-Listener
+      if (!isIOS) {
         document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
       }
-
-      document.getElementById("startScannerBtn").addEventListener('click', initScanner);
     });
 
-    // iOS-spezifische Funktionen
+    // Fehlerbehandlungsfunktion hinzugefügt
+    function handleScanError(errorMessage) {
+      console.log("Scanner Error:", errorMessage);
+    }
+
+    // iOS-Steuerung
+    function setupIOSListeners() {
+      document.getElementById('stopScannerBtn').addEventListener('click', handleIOSStop);
+      document.getElementById('restartScannerBtn').addEventListener('click', handleIOSRestart);
+    }
+
     async function handleIOSStop() {
       showIOSLoading(true);
       try {
         await resetScannerUI();
         document.getElementById("startScannerBtn").style.display = 'block';
         document.getElementById('iosControlPanel').style.display = 'none';
-        showStatus('Scanner erfolgreich gestoppt', 'scanning-status');
+        showStatus('Scanner gestoppt', 'scanning-status');
       } catch (e) {
-        showStatus('Fehler beim Stoppen: ' + e.message, 'error-status');
+        showStatus('Fehler: ' + e.message, 'error-status');
       }
       showIOSLoading(false);
     }
 
     async function handleIOSRestart() {
-      if (!confirm('Möchten Sie den Scanner wirklich neu starten?')) return;
+      if (!confirm('Scanner neu starten?')) return;
+      await resetAndStartScanner();
+    }
+
+    // Hauptinitialisierung
+    async function initScanner() {
       showIOSLoading(true);
       try {
         await resetScannerUI();
-        await initScanner();
-        document.getElementById('iosControlPanel').style.display = 'block';
-        showStatus('Scanner bereit', 'scanning-status');
-      } catch (e) {
-        showStatus('Neustart fehlgeschlagen: ' + e.message, 'error-status');
+
+        const config = {
+          fps: 10,
+          qrbox: 250,
+          aspectRatio: isIOS ? 1.0 : 1.777,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+        };
+
+        if (isIOS) {
+          config.focusMode = "continuous";
+          config.disableFlip = true;
+        }
+
+        html5QrCode = new Html5Qrcode("reader");
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          handleScanSuccess,
+          handleScanError
+        );
+
+        // UI-Update nach erfolgreichem Start
+        document.getElementById("startScannerBtn").style.display = "none";
+        if (isIOS) {
+          document.getElementById('iosControlPanel').style.display = 'block';
+          setupIOSListeners();
+        } else {
+          document.getElementById('normalControlPanel').style.display = 'block';
+        }
+        showStatus('Scanne Barcode...', 'scanning-status');
+
+      } catch (error) {
+        handleCameraError(error);
       }
       showIOSLoading(false);
     }
 
-    // Allgemeine Funktionen
-    async function resetAndStartScanner() {
-      try {
-        await resetScannerUI();
-        await initScanner();
-      } catch (e) {
-        showStatus('Fehler: ' + e.message, 'error-status');
-      }
-    }
-
+    // Verbessertes Zurücksetzen
     async function resetScannerUI() {
       const reader = document.getElementById("reader");
-
-      // Kompletter DOM-Reset für iOS
-      if (isIOS) {
-        const newReader = reader.cloneNode(true);
-        reader.parentNode.replaceChild(newReader, reader);
-      } else {
-        reader.innerHTML = '';
-      }
+      reader.innerHTML = '';
 
       if (html5QrCode) {
         try {
@@ -526,41 +552,12 @@
       document.getElementById("scanStatus").style.display = "none";
     }
 
-    async function initScanner() {
-      showIOSLoading(true);
-      try {
-        const config = isIOS ? {
-          facingMode: "environment",
-          fps: 10,
-          qrbox: 250,
-          aspectRatio: 1.0,
-          focusMode: "continuous",
-          disableFlip: true
-        } : {
-          fps: 10,
-          qrbox: 250,
-          aspectRatio: 1.777,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-        };
-
-        html5QrCode = new Html5Qrcode("reader");
-        await html5QrCode.start(
-          isIOS ? { facingMode: "environment" } : undefined,
-          config,
-          handleScanSuccess,
-          handleScanError
-        );
-
-        document.getElementById("startScannerBtn").style.display = "none";
-        document.getElementById(isIOS ? 'iosControlPanel' : 'normalControlPanel').style.display = "block";
-        showStatus('Scanne Barcode...', 'scanning-status');
-
-      } catch (error) {
-        handleCameraError(error);
-      }
-      showIOSLoading(false);
+    async function resetAndStartScanner() {
+      await resetScannerUI();
+      await initScanner();
     }
 
+    // Scan-Erfolg
     async function handleScanSuccess(decodedText) {
       showIOSLoading(true);
       try {
