@@ -412,14 +412,17 @@
         await resetScannerUI();
 
         const config = {
-          fps: 10,
-          qrbox: 250,
-          aspectRatio: 1.777,
+          fps: isIOS ? 15 : 10,
+          qrbox: isIOS ? 300 : 250,
+          aspectRatio: isIOS ? 1.0 : 1.777,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
           disableFlip: false
         };
 
-        if (isIOS) config.focusMode = "continuous";
+        if (isIOS) {
+          config.focusMode = "continuous";
+        }
+
 
         html5QrCode = new Html5Qrcode("reader");
         await html5QrCode.start(
