@@ -134,7 +134,12 @@
       width: 100% !important;
     }
 
-    /* CSS-Anpassungen für iOS */
+    /* Entfernt: keine Spiegelung mehr */
+    #reader video {
+      object-fit: cover !important;
+      border-radius: 12px;
+    }
+
     .ios-hint {
       background: #f0f0f0;
       border-left: 4px solid #2CB191;
@@ -143,14 +148,6 @@
       display: none;
     }
 
-    /* iOS Video-Korrektur */
-    #reader video {
-      transform: scaleX(-1);
-      object-fit: cover !important;
-      border-radius: 12px;
-    }
-
-    /* iOS Ladeanimation */
     .ios-loading {
       position: fixed;
       top: 0;
@@ -182,46 +179,14 @@
       }
     }
 
-    /* Warnhinweise */
-    .ios-warning {
-      animation: pulseWarning 1.5s infinite;
-      border: 2px solid #ff4444 !important;
-    }
-
-    @keyframes pulseWarning {
-      0% {
-        transform: scale(1);
-        opacity: 1;
-      }
-
-      50% {
-        transform: scale(1.05);
-        opacity: 0.8;
-      }
-
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-
-    /* Status-Meldung */
-    #scanStatus {
-      text-align: center;
-      padding: 1rem;
-      margin: 1rem 0;
-      border-radius: 8px;
-      display: none;
+    .error-status {
+      background: #ffe6e6;
+      color: #cc0000;
     }
 
     .scanning-status {
       background: rgba(44, 177, 145, 0.1);
       color: var(--primary-color);
-    }
-
-    .error-status {
-      background: #ffe6e6;
-      color: #cc0000;
     }
 
     .cta {
@@ -252,7 +217,6 @@
       padding: 3rem 0;
     }
 
-    /* Animationen */
     @keyframes subtleFade {
       from {
         opacity: 0;
@@ -308,7 +272,6 @@
 </head>
 
 <body>
-
   <!-- Navigation -->
   <nav class="navbar navbar-expand-lg sticky-top">
     <div class="container">
@@ -326,7 +289,6 @@
       </div>
     </div>
   </nav>
-
   <!-- Hero Section -->
   <section class="hero">
     <div class="container">
@@ -339,7 +301,6 @@
       </div>
     </div>
   </section>
-
   <!-- Über uns -->
   <section id="about" class="section">
     <div class="container">
@@ -354,7 +315,6 @@
       </div>
     </div>
   </section>
-
   <!-- Vorteile -->
   <section id="features" class="section bg-light">
     <div class="container">
@@ -386,7 +346,6 @@
       </div>
     </div>
   </section>
-
   <!-- Scanner Section -->
   <section id="scanner" class="section">
     <div class="container">
@@ -400,22 +359,10 @@
             Halte das Gerät quer und positioniere den Barcode im Rahmen
           </div>
         </div>
-
         <div id="reader"></div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
-
-        <!-- Geänderte Buttons für iOS -->
-        <div id="iosControlPanel" class="mt-3 text-center" style="display: none;">
-          <button id="stopScannerBtn" class="btn btn-danger me-2">
-            <i class="fas fa-stop-circle"></i> Scanner stoppen
-          </button>
-          <button id="restartScannerBtn" class="btn btn-custom">
-            <i class="fas fa-redo-alt"></i> Neu starten
-          </button>
-        </div>
-
-        <!-- Normale Steuerung für andere Geräte -->
+        <!-- Einheitliche Steuerung für alle Geräte -->
         <div id="normalControlPanel" class="mt-3 text-center" style="display: none;">
           <button id="restartBtn" class="btn btn-custom">
             <i class="fas fa-redo-alt"></i> Scanner neu starten
@@ -424,7 +371,6 @@
       </div>
     </div>
   </section>
-
   <!-- Kontakt -->
   <section id="contact" class="cta">
     <div class="container">
@@ -435,39 +381,29 @@
       </div>
     </div>
   </section>
-
   <!-- Footer -->
   <footer>
     <div class="container text-center">
       <p class="mb-0">&copy; 2025 MoveX. Alle Rechte vorbehalten.</p>
     </div>
   </footer>
-
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let html5QrCode = null;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
-    // Initialisierung
     document.addEventListener("DOMContentLoaded", () => {
       hideAllControls();
       document.getElementById('iosHint').style.display = isIOS ? 'block' : 'none';
       document.getElementById("startScannerBtn").addEventListener('click', initScanner);
-      if (!isIOS) setupAndroidListeners();
+      document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
     });
 
-    // Grundlegende Funktionen
     function hideAllControls() {
-      document.getElementById('iosControlPanel').style.display = 'none';
       document.getElementById('normalControlPanel').style.display = 'none';
       document.getElementById("startScannerBtn").style.display = 'block';
     }
 
-    function setupAndroidListeners() {
-      document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
-    }
-
-    // Scanner-Handling
     async function initScanner() {
       try {
         showIOSLoading(true);
@@ -476,9 +412,9 @@
         const config = {
           fps: 10,
           qrbox: 250,
-          aspectRatio: isIOS ? 1.0 : 1.777,
+          aspectRatio: 1.777,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-          disableFlip: isIOS // Fix für Spiegelung
+          disableFlip: false
         };
 
         if (isIOS) config.focusMode = "continuous";
@@ -500,7 +436,6 @@
       }
     }
 
-    // Scan-Ergebnis
     async function handleScanSuccess(decodedText) {
       try {
         showIOSLoading(true);
@@ -508,7 +443,7 @@
 
         const productData = await fetchProductData(decodedText);
         displayResult(decodedText, productData);
-        updateUI(true); // Wichtig für iOS-Button
+        updateUI(true);
       } catch (error) {
         showStatus("Fehler: " + error.message, "error-status");
       } finally {
@@ -516,7 +451,6 @@
       }
     }
 
-    // Hilfsfunktionen
     async function fetchProductData(barcode) {
       const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
       const data = await response.json();
@@ -535,53 +469,14 @@
         .join(", ");
     }
 
-    // UI-Steuerung
     function updateUI(showControls) {
       document.getElementById("startScannerBtn").style.display = showControls ? "none" : "block";
-
-      if (isIOS) {
-        const iosPanel = document.getElementById('iosControlPanel');
-        iosPanel.style.display = showControls ? 'block' : 'none';
-        if (showControls) refreshIOSListeners();
-      } else {
-        document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
-      }
+      document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
     }
 
-    function refreshIOSListeners() {
-      const stopBtn = document.getElementById('stopScannerBtn');
-      const restartBtn = document.getElementById('restartScannerBtn');
-
-      // Alte Listener entfernen
-      stopBtn.replaceWith(stopBtn.cloneNode(true));
-      restartBtn.replaceWith(restartBtn.cloneNode(true));
-
-      // Neue Listener hinzufügen
-      document.getElementById('stopScannerBtn').addEventListener('click', () => handleIOSAction('stop'));
-      document.getElementById('restartScannerBtn').addEventListener('click', () => handleIOSAction('restart'));
-    }
-
-    async function handleIOSAction(action) {
-      try {
-        showIOSLoading(true);
-        if (action === 'restart' && !confirm('Scanner neu starten?')) return;
-
-        await resetScannerUI();
-        if (action === 'restart') await initScanner();
-        else updateUI(false);
-
-      } catch (error) {
-        showStatus('Aktionsfehler: ' + error.message, 'error-status');
-      } finally {
-        showIOSLoading(false);
-      }
-    }
-
-    // Allgemeine Funktionen
     async function resetScannerUI() {
       const reader = document.getElementById("reader");
       reader.innerHTML = '';
-
       if (html5QrCode) {
         try {
           await html5QrCode.stop();
@@ -590,7 +485,6 @@
         }
         html5QrCode = null;
       }
-
       document.getElementById("result").innerHTML = '';
       document.getElementById("scanStatus").style.display = "none";
     }
@@ -629,10 +523,12 @@
     }
 
     function showIOSLoading(show) {
-      const loader = document.querySelector('.ios-loading') || document.createElement('div');
-      loader.className = 'ios-loading';
-      loader.innerHTML = '<div class="ios-spinner"></div>';
-
+      let loader = document.querySelector('.ios-loading');
+      if (!loader) {
+        loader = document.createElement('div');
+        loader.className = 'ios-loading';
+        loader.innerHTML = '<div class="ios-spinner"></div>';
+      }
       if (show) {
         document.body.appendChild(loader);
         loader.style.display = 'grid';
