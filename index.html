@@ -448,93 +448,136 @@
     let html5QrCode = null;
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
+    // Initialisierung
     document.addEventListener("DOMContentLoaded", () => {
-      // Initial alle Steuerelemente verstecken
-      document.getElementById('iosControlPanel').style.display = 'none';
-      document.getElementById('normalControlPanel').style.display = 'none';
+      hideAllControls();
       document.getElementById('iosHint').style.display = isIOS ? 'block' : 'none';
-
-      // Event-Listener für Hauptbutton
       document.getElementById("startScannerBtn").addEventListener('click', initScanner);
-
-      // Android-Listener
-      if (!isIOS) {
-        document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
-      }
+      if (!isIOS) setupAndroidListeners();
     });
 
-    // Fehlerbehandlungsfunktion hinzugefügt
-    function handleScanError(errorMessage) {
-      console.log("Scanner Error:", errorMessage);
+    // Grundlegende Funktionen
+    function hideAllControls() {
+      document.getElementById('iosControlPanel').style.display = 'none';
+      document.getElementById('normalControlPanel').style.display = 'none';
+      document.getElementById("startScannerBtn").style.display = 'block';
     }
 
-    // iOS-Steuerung
-    function setupIOSListeners() {
-      document.getElementById('stopScannerBtn').addEventListener('click', handleIOSStop);
-      document.getElementById('restartScannerBtn').addEventListener('click', handleIOSRestart);
+    function setupAndroidListeners() {
+      document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
     }
 
-    async function handleIOSStop() {
-      showIOSLoading(true);
-      try {
-        await resetScannerUI();
-        document.getElementById("startScannerBtn").style.display = 'block';
-        document.getElementById('iosControlPanel').style.display = 'none';
-        showStatus('Scanner gestoppt', 'scanning-status');
-      } catch (e) {
-        showStatus('Fehler: ' + e.message, 'error-status');
-      }
-      showIOSLoading(false);
-    }
-
-    async function handleIOSRestart() {
-      if (!confirm('Scanner neu starten?')) return;
-      await resetAndStartScanner();
-    }
-
-    // Hauptinitialisierung
+    // Scanner-Handling
     async function initScanner() {
-      showIOSLoading(true);
       try {
+        showIOSLoading(true);
         await resetScannerUI();
 
         const config = {
           fps: 10,
           qrbox: 250,
           aspectRatio: isIOS ? 1.0 : 1.777,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          disableFlip: isIOS // Fix für Spiegelung
         };
 
-        if (isIOS) {
-          config.focusMode = "continuous";
-          config.disableFlip = true;
-        }
+        if (isIOS) config.focusMode = "continuous";
 
         html5QrCode = new Html5Qrcode("reader");
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
           handleScanSuccess,
-          handleScanError
+          error => console.log("Scanner Error:", error)
         );
 
-        // UI-Update nach erfolgreichem Start
-        document.getElementById("startScannerBtn").style.display = "none";
-        if (isIOS) {
-          document.getElementById('iosControlPanel').style.display = 'block';
-          setupIOSListeners();
-        } else {
-          document.getElementById('normalControlPanel').style.display = 'block';
-        }
+        updateUI(true);
         showStatus('Scanne Barcode...', 'scanning-status');
-
       } catch (error) {
         handleCameraError(error);
+      } finally {
+        showIOSLoading(false);
       }
-      showIOSLoading(false);
     }
 
-    // Verbessertes Zurücksetzen
+    // Scan-Ergebnis
+    async function handleScanSuccess(decodedText) {
+      try {
+        showIOSLoading(true);
+        await html5QrCode.stop();
+
+        const productData = await fetchProductData(decodedText);
+        displayResult(decodedText, productData);
+        updateUI(true); // Wichtig für iOS-Button
+      } catch (error) {
+        showStatus("Fehler: " + error.message, "error-status");
+      } finally {
+        showIOSLoading(false);
+      }
+    }
+
+    // Hilfsfunktionen
+    async function fetchProductData(barcode) {
+      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
+      const data = await response.json();
+      if (data.status !== 1) throw new Error("Produkt nicht gefunden");
+      return {
+        name: data.product.product_name || "Unbekanntes Produkt",
+        stores: data.product.stores ? processStores(data.product.stores) : ""
+      };
+    }
+
+    function processStores(stores) {
+      const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
+      return stores.split(/[,;]+/)
+        .map(s => s.trim())
+        .filter(store => validStores.some(v => store.toLowerCase().includes(v.toLowerCase())))
+        .join(", ");
+    }
+
+    // UI-Steuerung
+    function updateUI(showControls) {
+      document.getElementById("startScannerBtn").style.display = showControls ? "none" : "block";
+
+      if (isIOS) {
+        const iosPanel = document.getElementById('iosControlPanel');
+        iosPanel.style.display = showControls ? 'block' : 'none';
+        if (showControls) refreshIOSListeners();
+      } else {
+        document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
+      }
+    }
+
+    function refreshIOSListeners() {
+      const stopBtn = document.getElementById('stopScannerBtn');
+      const restartBtn = document.getElementById('restartScannerBtn');
+
+      // Alte Listener entfernen
+      stopBtn.replaceWith(stopBtn.cloneNode(true));
+      restartBtn.replaceWith(restartBtn.cloneNode(true));
+
+      // Neue Listener hinzufügen
+      document.getElementById('stopScannerBtn').addEventListener('click', () => handleIOSAction('stop'));
+      document.getElementById('restartScannerBtn').addEventListener('click', () => handleIOSAction('restart'));
+    }
+
+    async function handleIOSAction(action) {
+      try {
+        showIOSLoading(true);
+        if (action === 'restart' && !confirm('Scanner neu starten?')) return;
+
+        await resetScannerUI();
+        if (action === 'restart') await initScanner();
+        else updateUI(false);
+
+      } catch (error) {
+        showStatus('Aktionsfehler: ' + error.message, 'error-status');
+      } finally {
+        showIOSLoading(false);
+      }
+    }
+
+    // Allgemeine Funktionen
     async function resetScannerUI() {
       const reader = document.getElementById("reader");
       reader.innerHTML = '';
@@ -557,69 +600,7 @@
       await initScanner();
     }
 
-    // Scan-Erfolg
-    async function handleScanSuccess(decodedText) {
-      showIOSLoading(true);
-      try {
-        await html5QrCode.stop();
-
-        const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${decodedText}.json`);
-        const data = await response.json();
-
-        if (data.status === 1) {
-          const productName = data.product.product_name || "Unbekanntes Produkt";
-          const stores = data.product.stores
-            ? await processStores(data.product.stores)
-            : "";
-
-          displayResult(decodedText, productName, stores);
-          showStatus('Scan erfolgreich!', 'scanning-status');
-        } else {
-          throw new Error("Produkt nicht gefunden");
-        }
-      } catch (error) {
-        showStatus("Fehler: " + error.message, "error-status");
-      }
-      showIOSLoading(false);
-    }
-
-    // Hilfsfunktionen
-    function showIOSLoading(show) {
-      const loader = document.createElement('div');
-      loader.className = 'ios-loading';
-      loader.innerHTML = '<div class="ios-spinner"></div>';
-
-      if (show) {
-        document.body.appendChild(loader);
-        loader.style.display = 'grid';
-      } else {
-        const existing = document.querySelector('.ios-loading');
-        if (existing) existing.remove();
-      }
-    }
-
-    function processStores(stores) {
-      const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
-      return stores.split(/[,;]+/)
-        .map(s => s.trim())
-        .filter(store =>
-          validStores.some(v => store.toLowerCase().includes(v.toLowerCase())))
-        .join(", ");
-    }
-
-    function handleCameraError(error) {
-      let message = "Kamera-Fehler: ";
-      if (error.name === "NotAllowedError") {
-        message += "Bitte Kamera-Berechtigungen erlauben";
-        message += '<br><button onclick="showCameraHelp()" class="btn btn-sm btn-light mt-2">Hilfe anzeigen</button>';
-      } else {
-        message += error.message;
-      }
-      showStatus(message, "error-status");
-      document.getElementById("startScannerBtn").style.display = "block";
-    }
-
-    function displayResult(barcode, name, stores) {
+    function displayResult(barcode, { name, stores }) {
       document.getElementById("result").innerHTML = `
         <div class="alert alert-success">
           <h4>${name}</h4>
@@ -629,11 +610,35 @@
       `;
     }
 
+    function handleCameraError(error) {
+      let message = "Kamera-Fehler: ";
+      if (error.name === "NotAllowedError") {
+        message += "Bitte Kamera-Berechtigungen erlauben";
+        message += '<br><button onclick="showCameraHelp()" class="btn btn-sm btn-light mt-2">Hilfe</button>';
+      } else {
+        message += error.message;
+      }
+      showStatus(message, "error-status");
+    }
+
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
       status.className = `${type} p-3 rounded`;
       status.innerHTML = text;
       status.style.display = "block";
+    }
+
+    function showIOSLoading(show) {
+      const loader = document.querySelector('.ios-loading') || document.createElement('div');
+      loader.className = 'ios-loading';
+      loader.innerHTML = '<div class="ios-spinner"></div>';
+
+      if (show) {
+        document.body.appendChild(loader);
+        loader.style.display = 'grid';
+      } else {
+        loader.remove();
+      }
     }
   </script>
 </body>
