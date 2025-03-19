@@ -374,20 +374,39 @@
 
     document.addEventListener("DOMContentLoaded", () => {
       if (isIOS) document.getElementById('iosHint').style.display = 'block';
-
       document.getElementById("startScannerBtn").addEventListener('click', initScanner);
-      document.getElementById("restartBtn").addEventListener('click', initScanner);
+      document.getElementById("restartBtn").addEventListener('click', resetAndStartScanner);
     });
 
+    // Scanner komplett zurücksetzen
+    function resetScannerUI() {
+      // UI-Elemente zurücksetzen
+      document.getElementById("result").innerHTML = '';
+      document.getElementById("scanStatus").style.display = "none";
+      document.getElementById("restartBtnContainer").style.display = "none";
+      document.getElementById("startScannerBtn").style.display = "block";
+
+      // Scanner-Instanz bereinigen
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          html5QrCode.clear();
+          html5QrCode = null;
+        }).catch(console.error);
+      }
+    }
+
+    // Neustart-Funktion
+    async function resetAndStartScanner() {
+      resetScannerUI();
+      await new Promise(resolve => setTimeout(resolve, 200));
+      initScanner();
+    }
+
+    // Haupt-Scanner-Funktion
     async function initScanner() {
       try {
-        showStatus("Initialisiere Scanner...", "scanning-status");
-
-        // Alten Scanner stoppen
-        if (html5QrCode?.isScanning) {
-          await html5QrCode.stop();
-          html5QrCode.clear();
-        }
+        resetScannerUI();
+        showStatus("Scanner wird vorbereitet...", "scanning-status");
 
         // Kameraauswahl
         const cameras = await Html5Qrcode.getCameras();
@@ -396,11 +415,9 @@
           !cam.label.match(/tele|wide|ultra wide|dual/gi)
         );
 
-        if (!backCamera) {
-          return await startWithEnvironmentFacingMode();
-        }
+        if (!backCamera) return await startWithEnvironmentFacingMode();
 
-        // Scanner mit gefundener Rückkamera starten
+        // Scanner mit Rückkamera starten
         html5QrCode = new Html5Qrcode("reader");
         await html5QrCode.start(
           backCamera.id,
@@ -408,21 +425,21 @@
             fps: 10,
             qrbox: { width: 250, height: 250 },
             aspectRatio: isIOS ? 1.0 : 1.777,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true
-            }
+            experimentalFeatures: { useBarCodeDetectorIfSupported: true }
           },
           handleScanSuccess,
           handleScanError
         );
 
-        updateUI();
+        document.getElementById("startScannerBtn").style.display = "none";
+        showStatus("Scanne Produktbarcode...", "scanning-status");
 
       } catch (error) {
         handleCameraError(error);
       }
     }
 
+    // Fallback für Kameraauswahl
     async function startWithEnvironmentFacingMode() {
       try {
         html5QrCode = new Html5Qrcode("reader");
@@ -436,18 +453,12 @@
           handleScanSuccess,
           handleScanError
         );
-        updateUI();
       } catch (error) {
         throw new Error("Kamera-Zugriff fehlgeschlagen");
       }
     }
 
-    function updateUI() {
-      document.getElementById("restartBtnContainer").style.display = "none";
-      document.getElementById("startScannerBtn").style.display = "none";
-      showStatus("Scanner bereit - Barcode zeigen!", "scanning-status");
-    }
-
+    // Erfolgreicher Scan
     async function handleScanSuccess(decodedText) {
       try {
         showStatus("Verarbeite Daten...", "scanning-status");
@@ -463,17 +474,17 @@
             : "";
 
           displayResult(decodedText, productName, stores);
+          document.getElementById("restartBtnContainer").style.display = "block";
+          showStatus("Scan erfolgreich!", "scanning-status");
         } else {
           throw new Error("Produkt nicht gefunden");
         }
       } catch (error) {
         showStatus("Fehler: " + error.message, "error-status");
-      } finally {
-        document.getElementById("restartBtnContainer").style.display = "block";
       }
     }
 
-    // Restliche Funktionen bleiben gleich wie zuvor
+    // Verarbeite Geschäftsangaben
     async function processStores(stores) {
       const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
       return stores.split(/[,;]+/)
@@ -483,6 +494,7 @@
         .join(", ");
     }
 
+    // Fehlerbehandlung
     function handleCameraError(error) {
       let message = "Kamera-Fehler: ";
       if (error.name === "NotAllowedError") {
@@ -495,22 +507,25 @@
       document.getElementById("startScannerBtn").style.display = "block";
     }
 
+    // Scanner-Fehler ignorieren
     function handleScanError(error) {
       if (!error.message.includes('No QR code found')) {
         console.error("Scanner Error:", error);
       }
     }
 
+    // Ergebnis anzeigen
     function displayResult(barcode, name, stores) {
       document.getElementById("result").innerHTML = `
-        <div class="alert alert-success">
-          <h4>${name}</h4>
-          ${stores ? `<p>Verfügbar bei: ${stores}</p>` : ''}
-          <small>Barcode: ${barcode}</small>
-        </div>
-      `;
+          <div class="alert alert-success">
+            <h4>${name}</h4>
+            ${stores ? `<p>Verfügbar bei: ${stores}</p>` : ''}
+            <small>Barcode: ${barcode}</small>
+          </div>
+        `;
     }
 
+    // Statusmeldungen
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
       status.className = `${type} p-3 rounded`;
@@ -518,18 +533,19 @@
       status.style.display = "block";
     }
 
+    // Kamera-Hilfe anzeigen
     function showCameraHelp() {
       document.getElementById("result").innerHTML = `
-        <div class="alert alert-info">
-          <h5>Kamera-Freigabe anlegen:</h5>
-          <ol>
-            <li>Klick auf das Schlossymbol in der Adressleiste</li>
-            <li>Berechtigungen auswählen</li>
-            <li>"Kamera" auf "Erlauben" setzen</li>
-            <li>Seite neu laden</li>
-          </ol>
-        </div>
-      `;
+          <div class="alert alert-info">
+            <h5>Kamera-Freigabe erlauben:</h5>
+            <ol>
+              <li>Klick auf das Schlossymbol in der Adressleiste</li>
+              <li>Berechtigungen auswählen</li>
+              <li>"Kamera" auf "Erlauben" setzen</li>
+              <li>Seite neu laden</li>
+            </ol>
+          </div>
+        `;
     }
   </script>
 </body>
