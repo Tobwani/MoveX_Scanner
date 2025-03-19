@@ -412,16 +412,19 @@
         await resetScannerUI();
 
         const config = {
-          fps: isIOS ? 15 : 10,
-          qrbox: isIOS ? 300 : 250,
-          aspectRatio: isIOS ? 1.0 : 1.777,
+          fps: 10, // Reduziert die FPS
+          qrbox: 250, // Kleinere Box, um den fokussierten Bereich zu optimieren
+          aspectRatio: 1.333, // Experimentiere hier mit verschiedenen Werten
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
           disableFlip: false
         };
 
+        // Für iOS: Entferne den focusMode, falls er Probleme bereitet
         if (isIOS) {
-          config.focusMode = "continuous";
+          // Entferne ggf. focusMode, falls er vorher gesetzt war:
+          // config.focusMode = "continuous"; // Kommentiere diesen Wert aus
         }
+
 
 
         html5QrCode = new Html5Qrcode("reader");
