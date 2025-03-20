@@ -406,26 +406,25 @@
       document.getElementById("startScannerBtn").style.display = 'block';
     }
 
+    // Hilfsfunktion für eine Verzögerung
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
     async function initScanner() {
       try {
         showIOSLoading(true);
         await resetScannerUI();
 
         const config = {
-          fps: 10, // Reduziert die FPS
-          qrbox: 250, // Kleinere Box, um den fokussierten Bereich zu optimieren
-          aspectRatio: 1.333, // Experimentiere hier mit verschiedenen Werten
+          fps: 10,          // Reduziert die FPS
+          qrbox: 250,       // Kleinere Box für einen fokussierten Bereich
+          aspectRatio: 1.333,
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
           disableFlip: false
         };
 
-        // Für iOS: Entferne den focusMode, falls er Probleme bereitet
-        if (isIOS) {
-          // Entferne ggf. focusMode, falls er vorher gesetzt war:
-          // config.focusMode = "continuous"; // Kommentiere diesen Wert aus
-        }
-
-
+        // Optional: Weitere iOS-spezifische Anpassungen können hier vorgenommen werden
 
         html5QrCode = new Html5Qrcode("reader");
         await html5QrCode.start(
@@ -434,6 +433,28 @@
           handleScanSuccess,
           error => console.log("Scanner Error:", error)
         );
+
+        // iOS-spezifische Anpassung der Video-Constraints
+        if (isIOS) {
+          // Kurze Pause, damit die Kamera initialisiert ist
+          await sleep(2250);
+          const scannerCapabilities = html5QrCode.getRunningTrackCapabilities();
+          const zoomCapability = (scannerCapabilities.zoom && scannerCapabilities.zoom > 2)
+            ? 2.0
+            : (scannerCapabilities.zoom || 1);
+
+          const constraints = {
+            width: { ideal: 1000 },
+            height: { ideal: 1000 },
+            frameRate: { ideal: scannerCapabilities.frameRate?.max || 30 },
+            advanced: [
+              ...(scannerCapabilities.zoom ? [{ zoom: zoomCapability }] : []),
+              ...(scannerCapabilities.focusDistance ? [{ focusDistance: 1 }] : []),
+            ],
+          };
+
+          await html5QrCode.applyVideoConstraints(constraints);
+        }
 
         updateUI(true);
         showStatus('Scanne Barcode...', 'scanning-status');
@@ -542,7 +563,9 @@
         document.body.appendChild(loader);
         loader.style.display = 'grid';
       } else {
-        loader.remove();
+        if (loader.parentNode) {
+          loader.parentNode.removeChild(loader);
+        }
       }
     }
   </script>
