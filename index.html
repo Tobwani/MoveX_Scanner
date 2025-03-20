@@ -127,15 +127,15 @@
       max-width: 800px;
     }
 
-    #reader {
+    /* Der Scanner-Container: Wir verwenden hier "render" statt "reader" */
+    #render {
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       width: 100% !important;
     }
 
-    /* Entfernt: keine Spiegelung mehr */
-    #reader video {
+    #render video {
       object-fit: cover !important;
       border-radius: 12px;
     }
@@ -206,7 +206,6 @@
       border: none;
     }
 
-    /* Angepasste Hover-Regel für btn-custom */
     .btn-custom:hover {
       background-color: var(--primary-color) !important;
       transform: translateY(-2px);
@@ -246,7 +245,7 @@
         margin: 1rem;
       }
 
-      #reader {
+      #render {
         max-width: 90vw;
         margin: 0 auto;
       }
@@ -361,7 +360,8 @@
             Halte das Gerät quer und positioniere den Barcode im Rahmen
           </div>
         </div>
-        <div id="reader"></div>
+        <!-- Hier nutzen wir den Container "render" -->
+        <div id="render"></div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
         <!-- Einheitliche Steuerung für alle Geräte -->
@@ -404,8 +404,14 @@
     });
 
     function hideAllControls() {
-      document.getElementById('normalControlPanel').style.display = 'none';
-      document.getElementById("startScannerBtn").style.display = 'block';
+      const normalControlPanel = document.getElementById('normalControlPanel');
+      if (normalControlPanel) {
+        normalControlPanel.style.display = 'none';
+      }
+      const startBtn = document.getElementById("startScannerBtn");
+      if (startBtn) {
+        startBtn.style.display = 'block';
+      }
     }
 
     // Hilfsfunktion für Verzögerungen
@@ -426,7 +432,7 @@
           disableFlip: false
         };
 
-        // Starte den Scanner im Container mit der ID "render"
+        // Starte den Scanner im Container "render"
         html5QrCode = new Html5QrCode("render");
         await html5QrCode.start(
           { facingMode: "environment" },
@@ -494,14 +500,24 @@
 
     // Aktualisiere die UI, um den Scanner-Start-Button auszublenden oder anzuzeigen
     function updateUI(showControls) {
-      document.getElementById("startScannerBtn").style.display = showControls ? "none" : "block";
-      document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
+      const startBtn = document.getElementById("startScannerBtn");
+      if (startBtn) {
+        startBtn.style.display = showControls ? "none" : "block";
+      }
+      const normalControlPanel = document.getElementById('normalControlPanel');
+      if (normalControlPanel) {
+        normalControlPanel.style.display = showControls ? 'block' : 'none';
+      }
     }
 
-    // Setze den Scanner zurück und lösche den Inhalt des Render-Containers
+    // Setze den Scanner zurück und leere den Container "render"
     async function resetScannerUI() {
       const reader = document.getElementById("render");
-      reader.innerHTML = '';
+      if (reader) {
+        reader.innerHTML = '';
+      } else {
+        console.warn("Kein Element mit der ID 'render' gefunden.");
+      }
       if (html5QrCode) {
         try {
           await html5QrCode.stop();
@@ -510,8 +526,14 @@
         }
         html5QrCode = null;
       }
-      document.getElementById("result").innerHTML = '';
-      document.getElementById("scanStatus").style.display = "none";
+      const resultElement = document.getElementById("result");
+      if (resultElement) {
+        resultElement.innerHTML = '';
+      }
+      const scanStatus = document.getElementById("scanStatus");
+      if (scanStatus) {
+        scanStatus.style.display = "none";
+      }
     }
 
     async function resetAndStartScanner() {
@@ -521,13 +543,16 @@
 
     // Zeigt das Scan-Ergebnis in der UI an
     function displayResult(barcode, { name, stores }) {
-      document.getElementById("result").innerHTML = `
-        <div class="alert alert-success">
-          <h4>${name}</h4>
-          ${stores ? `<p>Verfügbar bei: ${stores}</p>` : ''}
-          <small>Barcode: ${barcode}</small>
-        </div>
-      `;
+      const resultContainer = document.getElementById("result");
+      if (resultContainer) {
+        resultContainer.innerHTML = `
+          <div class="alert alert-success">
+            <h4>${name}</h4>
+            ${stores ? `<p>Verfügbar bei: ${stores}</p>` : ''}
+            <small>Barcode: ${barcode}</small>
+          </div>
+        `;
+      }
       showStatus('Produkt erfolgreich gescannt!', 'scanning-status');
     }
 
@@ -546,9 +571,11 @@
     // Zeigt Statusmeldungen in der UI an
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
-      status.className = `${type} p-3 rounded`;
-      status.innerHTML = text;
-      status.style.display = "block";
+      if (status) {
+        status.className = `${type} p-3 rounded`;
+        status.innerHTML = text;
+        status.style.display = "block";
+      }
     }
 
     // Zeigt bzw. versteckt einen Lade-Indikator (z.B. für iOS)
