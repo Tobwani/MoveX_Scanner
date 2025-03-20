@@ -424,8 +424,6 @@
           disableFlip: false
         };
 
-        // Optional: Weitere iOS-spezifische Anpassungen können hier vorgenommen werden
-
         html5QrCode = new Html5Qrcode("reader");
         await html5QrCode.start(
           { facingMode: "environment" },
@@ -436,16 +434,18 @@
 
         // iOS-spezifische Anpassung der Video-Constraints
         if (isIOS) {
-          // Kurze Pause, damit die Kamera vollständig initialisiert ist
+          // Kurze Pause, damit die Kamera initialisiert ist
           await sleep(2250);
           const scannerCapabilities = html5QrCode.getRunningTrackCapabilities();
 
-          // Hier wird bewusst kein Zoom-Constraint gesetzt, um ein extremes Heranzoomen zu vermeiden.
           const constraints = {
             width: { ideal: 1000 },
             height: { ideal: 1000 },
             frameRate: { ideal: scannerCapabilities.frameRate?.max || 30 },
-            // advanced: []  // Falls du später weitere erweiterte Einstellungen (z. B. focusDistance) setzen möchtest, kannst du hier ansetzen.
+            advanced: [
+              // Zoom wird hier bewusst nicht gesetzt
+              ...(scannerCapabilities.focusDistance ? [{ focusDistance: 1 }] : []),
+            ],
           };
 
           await html5QrCode.applyVideoConstraints(constraints);
