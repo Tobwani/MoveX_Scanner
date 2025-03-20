@@ -392,89 +392,59 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let html5QrCode = null;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
     document.addEventListener("DOMContentLoaded", () => {
-      hideAllControls();
-      document.getElementById('iosHint').style.display = isIOS ? 'block' : 'none';
-      document.getElementById("startScannerBtn").addEventListener('click', initScanner);
-      document.getElementById('restartBtn').addEventListener('click', resetAndStartScanner);
+      // Stelle sicher, dass in deinem HTML-Body ein Element mit der ID "render" existiert,
+      // z.B. <div id="render"></div>
+      document.getElementById("startScannerBtn").addEventListener("click", initScanner);
+      document.getElementById("restartBtn").addEventListener("click", resetAndStartScanner);
     });
 
-    function hideAllControls() {
-      document.getElementById('normalControlPanel').style.display = 'none';
-      document.getElementById("startScannerBtn").style.display = 'block';
+    // Startet den Scanner mit den vorgegebenen Video-Constraints
+    function initScanner() {
+      html5QrCode = new Html5Qrcode("render");
+      html5QrCode.start(
+        {},
+        {
+          fps: 10,
+          videoConstraints: {
+            width: 1920,
+            height: 1080,
+            facingMode: "environment",
+          },
+        },
+        onScan,
+        onError
+      );
     }
 
-    // Hilfsfunktion für eine Verzögerung
-    function sleep(ms) {
-      return new Promise(resolve => setTimeout(resolve, ms));
+    // Callback, wenn ein Barcode/QR-Code erfolgreich gescannt wurde
+    function onScan(decodedText, decodedResult) {
+      // Stoppe den Scanner, um weitere Scans zu verhindern
+      html5QrCode.stop().then(() => {
+        handleScanSuccess(decodedText);
+      }).catch(err => {
+        console.error("Fehler beim Stoppen des Scanners:", err);
+      });
     }
 
-    async function initScanner() {
-      try {
-        showIOSLoading(true);
-        await resetScannerUI();
-
-        const config = {
-          fps: 10,          // Reduziert die FPS
-          qrbox: 250,       // Kleinere Box für einen fokussierten Bereich
-          aspectRatio: 1.333,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-          disableFlip: false
-        };
-
-        html5QrCode = new Html5Qrcode("reader");
-        await html5QrCode.start(
-          { facingMode: "environment" },
-          config,
-          handleScanSuccess,
-          error => console.log("Scanner Error:", error)
-        );
-
-        // iOS-spezifische Anpassung der Video-Constraints
-        if (isIOS) {
-          // Kurze Pause, damit die Kamera initialisiert ist
-          await sleep(2250);
-          const scannerCapabilities = html5QrCode.getRunningTrackCapabilities();
-
-          const constraints = {
-            width: { ideal: 1000 },
-            height: { ideal: 1000 },
-            frameRate: { ideal: scannerCapabilities.frameRate?.max || 30 },
-            advanced: [
-              // Zoom wird hier bewusst nicht gesetzt
-              ...(scannerCapabilities.focusDistance ? [{ focusDistance: 1 }] : []),
-            ],
-          };
-
-          await html5QrCode.applyVideoConstraints(constraints);
-        }
-
-        updateUI(true);
-        showStatus('Scanne Barcode...', 'scanning-status');
-      } catch (error) {
-        handleCameraError(error);
-      } finally {
-        showIOSLoading(false);
-      }
+    // Fehler-Callback
+    function onError(errorMessage) {
+      console.warn("Scanner-Fehler:", errorMessage);
+      // Du kannst hier ggf. auch eine Fehleranzeige in der UI implementieren
     }
 
+    // Verarbeitung des Scan-Ergebnisses
     async function handleScanSuccess(decodedText) {
       try {
-        showIOSLoading(true);
-        await html5QrCode.stop();
-
         const productData = await fetchProductData(decodedText);
         displayResult(decodedText, productData);
-        updateUI(true);
       } catch (error) {
         showStatus("Fehler: " + error.message, "error-status");
-      } finally {
-        showIOSLoading(false);
       }
     }
 
+    // Ruft Produktdaten von der OpenFoodFacts-API ab
     async function fetchProductData(barcode) {
       const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
       const data = await response.json();
@@ -485,6 +455,7 @@
       };
     }
 
+    // Filtert die Stores
     function processStores(stores) {
       const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
       return stores.split(/[,;]+/)
@@ -493,31 +464,7 @@
         .join(", ");
     }
 
-    function updateUI(showControls) {
-      document.getElementById("startScannerBtn").style.display = showControls ? "none" : "block";
-      document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
-    }
-
-    async function resetScannerUI() {
-      const reader = document.getElementById("reader");
-      reader.innerHTML = '';
-      if (html5QrCode) {
-        try {
-          await html5QrCode.stop();
-        } catch (e) {
-          console.log('Stop error:', e);
-        }
-        html5QrCode = null;
-      }
-      document.getElementById("result").innerHTML = '';
-      document.getElementById("scanStatus").style.display = "none";
-    }
-
-    async function resetAndStartScanner() {
-      await resetScannerUI();
-      await initScanner();
-    }
-
+    // Zeigt das Scan-Ergebnis in der UI an
     function displayResult(barcode, { name, stores }) {
       document.getElementById("result").innerHTML = `
         <div class="alert alert-success">
@@ -529,17 +476,7 @@
       showStatus('Produkt erfolgreich gescannt!', 'scanning-status');
     }
 
-    function handleCameraError(error) {
-      let message = "Kamera-Fehler: ";
-      if (error.name === "NotAllowedError") {
-        message += "Bitte Kamera-Berechtigungen erlauben";
-        message += '<br><button onclick="showCameraHelp()" class="btn btn-sm btn-light mt-2">Hilfe</button>';
-      } else {
-        message += error.message;
-      }
-      showStatus(message, "error-status");
-    }
-
+    // Zeigt Statusmeldungen in der UI an
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
       status.className = `${type} p-3 rounded`;
@@ -547,20 +484,16 @@
       status.style.display = "block";
     }
 
-    function showIOSLoading(show) {
-      let loader = document.querySelector('.ios-loading');
-      if (!loader) {
-        loader = document.createElement('div');
-        loader.className = 'ios-loading';
-        loader.innerHTML = '<div class="ios-spinner"></div>';
-      }
-      if (show) {
-        document.body.appendChild(loader);
-        loader.style.display = 'grid';
+    // Stoppt den Scanner und startet ihn neu
+    function resetAndStartScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          initScanner();
+        }).catch(err => {
+          console.error("Fehler beim Zurücksetzen des Scanners:", err);
+        });
       } else {
-        if (loader.parentNode) {
-          loader.parentNode.removeChild(loader);
-        }
+        initScanner();
       }
     }
   </script>
