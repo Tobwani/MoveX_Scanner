@@ -393,58 +393,86 @@
   <script>
     let html5QrCode = null;
 
+    // Überprüfe, ob das Gerät Android ist
+    const isAndroid = /Android/.test(navigator.userAgent);
+
     document.addEventListener("DOMContentLoaded", () => {
-      // Stelle sicher, dass in deinem HTML-Body ein Element mit der ID "render" existiert,
-      // z.B. <div id="render"></div>
+      hideAllControls();
+      document.getElementById('iosHint').style.display = (/iPad|iPhone|iPod/.test(navigator.userAgent) ? 'block' : 'none');
       document.getElementById("startScannerBtn").addEventListener("click", initScanner);
       document.getElementById("restartBtn").addEventListener("click", resetAndStartScanner);
     });
 
-    // Startet den Scanner mit den vorgegebenen Video-Constraints
-    function initScanner() {
-      html5QrCode = new Html5Qrcode("render");
-      html5QrCode.start(
-        {},
-        {
-          fps: 10,
-          videoConstraints: {
-            width: 1920,
-            height: 1080,
-            facingMode: "environment",
-          },
-        },
-        onScan,
-        onError
-      );
+    function hideAllControls() {
+      document.getElementById('normalControlPanel').style.display = 'none';
+      document.getElementById("startScannerBtn").style.display = 'block';
     }
 
-    // Callback, wenn ein Barcode/QR-Code erfolgreich gescannt wurde
-    function onScan(decodedText, decodedResult) {
-      // Stoppe den Scanner, um weitere Scans zu verhindern
-      html5QrCode.stop().then(() => {
-        handleScanSuccess(decodedText);
-      }).catch(err => {
-        console.error("Fehler beim Stoppen des Scanners:", err);
-      });
+    // Hilfsfunktion für Verzögerungen
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function initScanner() {
+      try {
+        showIOSLoading(true);
+        await resetScannerUI();
+
+        const config = {
+          fps: 10,
+          qrbox: 250,
+          aspectRatio: 1.333,
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+          disableFlip: false
+        };
+
+        // Starte den Scanner im Container mit der ID "render"
+        html5QrCode = new Html5QrCode("render");
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          config,
+          handleScanSuccess,
+          onError
+        );
+
+        // Wende die gewünschten Video-Constraints an
+        // Hier wird focusMode "continuous" gesetzt und der Zoom je nach Gerät angepasst
+        await html5QrCode.applyVideoConstraints({
+          focusMode: "continuous",
+          advanced: [{ zoom: isAndroid ? 1.5 : 2.0 }]
+        });
+
+        updateUI(true);
+        showStatus('Scanne Barcode...', 'scanning-status');
+      } catch (error) {
+        handleCameraError(error);
+      } finally {
+        showIOSLoading(false);
+      }
+    }
+
+    // Callback bei erfolgreichem Scan
+    async function handleScanSuccess(decodedText) {
+      try {
+        showIOSLoading(true);
+        await html5QrCode.stop();
+
+        const productData = await fetchProductData(decodedText);
+        displayResult(decodedText, productData);
+        updateUI(true);
+      } catch (error) {
+        showStatus("Fehler: " + error.message, "error-status");
+      } finally {
+        showIOSLoading(false);
+      }
     }
 
     // Fehler-Callback
     function onError(errorMessage) {
       console.warn("Scanner-Fehler:", errorMessage);
-      // Du kannst hier ggf. auch eine Fehleranzeige in der UI implementieren
     }
 
-    // Verarbeitung des Scan-Ergebnisses
-    async function handleScanSuccess(decodedText) {
-      try {
-        const productData = await fetchProductData(decodedText);
-        displayResult(decodedText, productData);
-      } catch (error) {
-        showStatus("Fehler: " + error.message, "error-status");
-      }
-    }
-
-    // Ruft Produktdaten von der OpenFoodFacts-API ab
+    // Produktdaten von der OpenFoodFacts-API abrufen
     async function fetchProductData(barcode) {
       const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
       const data = await response.json();
@@ -455,13 +483,40 @@
       };
     }
 
-    // Filtert die Stores
+    // Verarbeite die Stores und filtere nach gültigen Einträgen
     function processStores(stores) {
       const validStores = ["Lidl", "Rewe", "Edeka", "Aldi"];
       return stores.split(/[,;]+/)
         .map(s => s.trim())
         .filter(store => validStores.some(v => store.toLowerCase().includes(v.toLowerCase())))
         .join(", ");
+    }
+
+    // Aktualisiere die UI, um den Scanner-Start-Button auszublenden oder anzuzeigen
+    function updateUI(showControls) {
+      document.getElementById("startScannerBtn").style.display = showControls ? "none" : "block";
+      document.getElementById('normalControlPanel').style.display = showControls ? 'block' : 'none';
+    }
+
+    // Setze den Scanner zurück und lösche den Inhalt des Render-Containers
+    async function resetScannerUI() {
+      const reader = document.getElementById("render");
+      reader.innerHTML = '';
+      if (html5QrCode) {
+        try {
+          await html5QrCode.stop();
+        } catch (e) {
+          console.log('Stop error:', e);
+        }
+        html5QrCode = null;
+      }
+      document.getElementById("result").innerHTML = '';
+      document.getElementById("scanStatus").style.display = "none";
+    }
+
+    async function resetAndStartScanner() {
+      await resetScannerUI();
+      await initScanner();
     }
 
     // Zeigt das Scan-Ergebnis in der UI an
@@ -476,6 +531,18 @@
       showStatus('Produkt erfolgreich gescannt!', 'scanning-status');
     }
 
+    // Behandelt Kamera-Fehler und zeigt eine entsprechende Nachricht an
+    function handleCameraError(error) {
+      let message = "Kamera-Fehler: ";
+      if (error.name === "NotAllowedError") {
+        message += "Bitte Kamera-Berechtigungen erlauben";
+        message += '<br><button onclick="showCameraHelp()" class="btn btn-sm btn-light mt-2">Hilfe</button>';
+      } else {
+        message += error.message;
+      }
+      showStatus(message, "error-status");
+    }
+
     // Zeigt Statusmeldungen in der UI an
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
@@ -484,16 +551,21 @@
       status.style.display = "block";
     }
 
-    // Stoppt den Scanner und startet ihn neu
-    function resetAndStartScanner() {
-      if (html5QrCode) {
-        html5QrCode.stop().then(() => {
-          initScanner();
-        }).catch(err => {
-          console.error("Fehler beim Zurücksetzen des Scanners:", err);
-        });
+    // Zeigt bzw. versteckt einen Lade-Indikator (z.B. für iOS)
+    function showIOSLoading(show) {
+      let loader = document.querySelector('.ios-loading');
+      if (!loader) {
+        loader = document.createElement('div');
+        loader.className = 'ios-loading';
+        loader.innerHTML = '<div class="ios-spinner"></div>';
+      }
+      if (show) {
+        document.body.appendChild(loader);
+        loader.style.display = 'grid';
       } else {
-        initScanner();
+        if (loader.parentNode) {
+          loader.parentNode.removeChild(loader);
+        }
       }
     }
   </script>
