@@ -310,8 +310,7 @@
       </div>
       <div class="row justify-content-center">
         <div class="col-lg-8 text-center">
-          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt
-            sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
+          <p class="lead">MoveX revolutioniert den Einkaufsprozess mit intelligenten Abo-Lieferungen. Unser System passt sich deinem Bedarf an, damit du nie wieder Zeit mit unnötigen Einkäufen verschwendest.</p>
         </div>
       </div>
     </div>
@@ -360,7 +359,7 @@
             Halte das Gerät quer und positioniere den Barcode im Rahmen
           </div>
         </div>
-        <!-- Hier nutzen wir den Container "render" -->
+        <!-- Scanner-Container -->
         <div id="render"></div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
@@ -405,11 +404,11 @@
 
     function hideAllControls() {
       const normalControlPanel = document.getElementById('normalControlPanel');
-      if (normalControlPanel) {
+      if(normalControlPanel) {
         normalControlPanel.style.display = 'none';
       }
       const startBtn = document.getElementById("startScannerBtn");
-      if (startBtn) {
+      if(startBtn) {
         startBtn.style.display = 'block';
       }
     }
@@ -433,7 +432,7 @@
         };
 
         // Starte den Scanner im Container "render"
-        html5QrCode = new Html5QrCode("render");
+        html5QrCode = new Html5Qrcode("render");
         await html5QrCode.start(
           { facingMode: "environment" },
           config,
@@ -441,8 +440,8 @@
           onError
         );
 
-        // Wende die gewünschten Video-Constraints an
-        // Hier wird focusMode "continuous" gesetzt und der Zoom je nach Gerät angepasst
+        // Wende die gewünschten Video-Constraints an:
+        // focusMode "continuous" und Zoom je nach Gerät
         await html5QrCode.applyVideoConstraints({
           focusMode: "continuous",
           advanced: [{ zoom: isAndroid ? 1.5 : 2.0 }]
@@ -501,11 +500,11 @@
     // Aktualisiere die UI, um den Scanner-Start-Button auszublenden oder anzuzeigen
     function updateUI(showControls) {
       const startBtn = document.getElementById("startScannerBtn");
-      if (startBtn) {
+      if(startBtn) {
         startBtn.style.display = showControls ? "none" : "block";
       }
       const normalControlPanel = document.getElementById('normalControlPanel');
-      if (normalControlPanel) {
+      if(normalControlPanel) {
         normalControlPanel.style.display = showControls ? 'block' : 'none';
       }
     }
@@ -527,11 +526,11 @@
         html5QrCode = null;
       }
       const resultElement = document.getElementById("result");
-      if (resultElement) {
+      if(resultElement) {
         resultElement.innerHTML = '';
       }
       const scanStatus = document.getElementById("scanStatus");
-      if (scanStatus) {
+      if(scanStatus) {
         scanStatus.style.display = "none";
       }
     }
@@ -544,7 +543,7 @@
     // Zeigt das Scan-Ergebnis in der UI an
     function displayResult(barcode, { name, stores }) {
       const resultContainer = document.getElementById("result");
-      if (resultContainer) {
+      if(resultContainer) {
         resultContainer.innerHTML = `
           <div class="alert alert-success">
             <h4>${name}</h4>
@@ -571,7 +570,7 @@
     // Zeigt Statusmeldungen in der UI an
     function showStatus(text, type) {
       const status = document.getElementById("scanStatus");
-      if (status) {
+      if(status) {
         status.className = `${type} p-3 rounded`;
         status.innerHTML = text;
         status.style.display = "block";
