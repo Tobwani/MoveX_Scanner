@@ -436,21 +436,16 @@
 
         // iOS-spezifische Anpassung der Video-Constraints
         if (isIOS) {
-          // Kurze Pause, damit die Kamera initialisiert ist
+          // Kurze Pause, damit die Kamera vollständig initialisiert ist
           await sleep(2250);
           const scannerCapabilities = html5QrCode.getRunningTrackCapabilities();
-          const zoomCapability = (scannerCapabilities.zoom && scannerCapabilities.zoom > 2)
-            ? 2.0
-            : (scannerCapabilities.zoom || 1);
 
+          // Hier wird bewusst kein Zoom-Constraint gesetzt, um ein extremes Heranzoomen zu vermeiden.
           const constraints = {
             width: { ideal: 1000 },
             height: { ideal: 1000 },
             frameRate: { ideal: scannerCapabilities.frameRate?.max || 30 },
-            advanced: [
-              ...(scannerCapabilities.zoom ? [{ zoom: zoomCapability }] : []),
-              ...(scannerCapabilities.focusDistance ? [{ focusDistance: 1 }] : []),
-            ],
+            // advanced: []  // Falls du später weitere erweiterte Einstellungen (z. B. focusDistance) setzen möchtest, kannst du hier ansetzen.
           };
 
           await html5QrCode.applyVideoConstraints(constraints);
