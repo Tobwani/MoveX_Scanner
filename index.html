@@ -804,6 +804,8 @@
     `;
       }
       showStatus('Produkt erfolgreich gescannt!', 'scanning-status');
+      // Scrollt automatisch in den Ergebnisbereich
+      scrollToElement("result");
     }
 
 
@@ -894,6 +896,22 @@
         }
       }
     }
+
+    function scrollToElement(elementId) {
+      const element = document.getElementById(elementId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    async function resetAndStartScanner() {
+      await resetScannerUI();
+      await initScanner();
+      // Scrollt in den Bereich, in dem der Scanner (das Video) angezeigt wird
+      scrollToElement("render");
+    }
+
+
   </script>
   <!-- NOVA Info Modal -->
   <div class="modal fade" id="novaModal" tabindex="-1">
