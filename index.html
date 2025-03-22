@@ -754,7 +754,7 @@
      ***********************************************/
     // Globale Variable, um die aktuellen Nährwertlevel zu speichern
     let currentNutrientLevels = null;
-    function displayResult(barcode, { name, stores, nova }) {
+    function displayResult(barcode, { name, stores, nova, nutrientLevels }) {
       // Speichern für den späteren Zugriff in der Modal
       currentNutrientLevels = nutrientLevels;
       const resultContainer = document.getElementById("result");
