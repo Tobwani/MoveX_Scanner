@@ -118,6 +118,48 @@
       margin-bottom: 1.5rem;
     }
 
+    /* NOVA Modal Styles */
+    .nova-group {
+      border-left: 4px solid transparent;
+      transition: transform 0.2s ease;
+    }
+
+    .nova-group:hover {
+      transform: translateX(5px);
+    }
+
+    .nova-group-1 {
+      border-color: #2CB191;
+      background: rgba(44, 177, 145, 0.05);
+    }
+
+    .nova-group-2 {
+      border-color: #FFC107;
+      background: rgba(255, 193, 7, 0.05);
+    }
+
+    .nova-group-3 {
+      border-color: #FF9800;
+      background: rgba(255, 152, 0, 0.05);
+    }
+
+    .nova-group-4 {
+      border-color: #F44336;
+      background: rgba(244, 67, 54, 0.05);
+    }
+
+    .nova-info-icon {
+      cursor: pointer;
+      font-size: 0.8em;
+      vertical-align: super;
+      color: #666;
+      transition: color 0.2s ease;
+    }
+
+    .nova-info-icon:hover {
+      color: var(--primary-color);
+    }
+
     .nova-icon {
       font-size: 1.2rem;
       margin-right: 0.5rem;
@@ -565,10 +607,33 @@
       const { icon, color, text } = novaInfo[novaScore];
       return `
         <div class="mt-3 p-2 rounded" style="background: ${color}20; border-left: 4px solid ${color}">
-            <i class="fas ${icon} nova-icon" style="color: ${color}"></i>
-            <strong>NOVA-Score ${novaScore}:</strong> ${text}
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas ${icon} nova-icon" style="color: ${color}"></i>
+                    <strong>NOVA-Score ${novaScore}:</strong> ${text}
+                </div>
+                <i class="fas fa-info-circle nova-info-icon" 
+                   data-bs-toggle="modal" 
+                   data-bs-target="#novaModal"
+                   onclick="showNovaDetails(${novaScore})"></i>
+            </div>
         </div>
     `;
+    }
+
+    function showNovaDetails(novaGroup) {
+      const modal = document.getElementById('novaModal');
+      const groups = modal.querySelectorAll('.nova-group');
+
+      // Alle Gruppen ausblenden
+      groups.forEach(group => group.style.display = 'none');
+
+      // Nur die entsprechende Gruppe anzeigen
+      const activeGroup = modal.querySelector(`.nova-group-${novaGroup}`);
+      if (activeGroup) {
+        activeGroup.style.display = 'block';
+        activeGroup.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
 
     /***********************************************
@@ -730,6 +795,77 @@
       }
     }
   </script>
+  <!-- NOVA Info Modal -->
+  <div class="modal fade" id="novaModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fas fa-info-circle me-2"></i>Was ist der NOVA-Score?
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="nova-group nova-group-1 mb-3 p-3 rounded">
+            <h5><i class="fas fa-smile me-2"></i>Gruppe 1 - Unverarbeitete Lebensmittel</h5>
+            <p>Natürliche, frische oder minimal verarbeitete Zutaten wie:</p>
+            <ul>
+              <li>Frisches Obst & Gemüse</li>
+              <li>Eier</li>
+              <li>Frisches Fleisch/Fisch</li>
+              <li>Wasser, Kräuter</li>
+            </ul>
+          </div>
+
+          <div class="nova-group nova-group-2 mb-3 p-3 rounded">
+            <h5><i class="fas fa-meh me-2"></i>Gruppe 2 - Verarbeitete Zutaten</h5>
+            <p>Durch Verfahren wie Pressen, Mahlen hergestellte Zutaten:</p>
+            <ul>
+              <li>Mehle</li>
+              <li>Pflanzenöle</li>
+              <li>Butter</li>
+              <li>Zucker/Salz</li>
+            </ul>
+          </div>
+
+          <div class="nova-group nova-group-3 mb-3 p-3 rounded">
+            <h5><i class="fas fa-frown me-2"></i>Gruppe 3 - Verarbeitete Lebensmittel</h5>
+            <p>Einfache Kombinationen aus Gruppe 1 & 2:</p>
+            <ul>
+              <li>Konserven</li>
+              <li>Geräuchertes Fleisch</li>
+              <li>Frisch gebackenes Brot</li>
+              <li>Käse</li>
+            </ul>
+          </div>
+
+          <div class="nova-group nova-group-4 mb-3 p-3 rounded">
+            <h5><i class="fas fa-exclamation-triangle me-2"></i>Gruppe 4 - Hochverarbeitete Produkte</h5>
+            <p>Industriell hergestellte Produkte mit:</p>
+            <ul>
+              <li>Zusatzstoffen</li>
+              <li>Geschmacksverstärkern</li>
+              <li>Künstlichen Farbstoffen</li>
+              <li>Mehr als 5 Zutaten</li>
+            </ul>
+          </div>
+
+          <div class="alert alert-secondary">
+            <h6>Gesundheitsrichtlinien:</h6>
+            <p>Empfohlene Tageshöchstmenge laut WHO:</p>
+            <ul>
+              <li>Gruppe 4: Max. 15% der Kalorien</li>
+              <li>Gruppe 3: Max. 30% der Kalorien</li>
+            </ul>
+          </div>
+
+          <a href="https://world.openfoodfacts.org/nova" target="_blank" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-external-link-alt me-2"></i>Mehr Infos auf Open Food Facts
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>
