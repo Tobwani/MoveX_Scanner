@@ -129,10 +129,39 @@
 
     /* Container für den QR-Scanner (früher "render") */
     #render {
-      border-radius: 12px;
+      position: relative;
       overflow: hidden;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-      width: 100% !important;
+    }
+
+    .scan-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 4px solid var(--primary-color);
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background: var(--primary-color);
+      animation: scanLine 2s infinite;
+    }
+
+    @keyframes scanLine {
+      0% {
+        top: 0;
+      }
+
+      100% {
+        top: 100%;
+      }
     }
 
     #render video {
@@ -218,28 +247,41 @@
       padding: 3rem 0;
     }
 
-    @keyframes pulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(44, 177, 145, 0.7);
-      }
+    #render {
+      position: relative;
+      overflow: hidden;
+    }
 
-      70% {
-        box-shadow: 0 0 0 10px rgba(44, 177, 145, 0);
+    .scan-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 250px;
+      height: 250px;
+      border: 4px solid var(--primary-color);
+      border-radius: 12px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background: var(--primary-color);
+      animation: scanLine 2s infinite;
+    }
+
+    @keyframes scanLine {
+      0% {
+        top: 0;
       }
 
       100% {
-        box-shadow: 0 0 0 0 rgba(44, 177, 145, 0);
+        top: 100%;
       }
     }
-
-    .scanning-highlight {
-      animation: pulse 2s infinite;
-    }
-
-    .scan-success {
-      animation: pulse 0.5s ease-out;
-    }
-
 
     /* Zusätzliche Medienabfrage für kleinere Geräte und PCs */
     @media (max-width: 768px) {
@@ -393,7 +435,12 @@
           </div>
         </div>
         <!-- Container für den QR-Scanner -->
-        <div id="render"></div>
+        <div id="render">
+          <!-- Füge Overlay-Elemente hinzu -->
+          <div class="scan-overlay">
+            <div class="scan-line"></div>
+          </div>
+        </div>
         <div id="scanStatus"></div>
         <div id="result" class="mt-4 p-3 bg-light rounded"></div>
         <!-- Steuerungs-Panel, z.B. für den Neustart des Scanners -->
@@ -483,8 +530,8 @@
         // Setze die UI des Scanners zurück
         await resetScannerUI();
 
-        // Füge Highlight-Klasse hinzu, um den Scanbereich visuell hervorzuheben
-        document.getElementById("render").classList.add("scanning-highlight");
+        // Füge Puls-Effekt zum Scanner-Container hinzu
+        document.getElementById('render').classList.add('pulse-effect');
 
         // Konfigurationseinstellungen für den Scanner
         const config = {
@@ -520,8 +567,6 @@
       } finally {
         // Verberge den Lade-Indikator
         showIOSLoading(false);
-        // Optional: Entferne das Highlight, wenn der Scan startet oder fehlschlägt
-        document.getElementById("render").classList.remove("scanning-highlight");
       }
     }
 
@@ -533,20 +578,26 @@
     async function handleScanSuccess(decodedText) {
       try {
         showIOSLoading(true);
-        // Stoppe den Scanner, sobald ein Barcode erkannt wurde
+        // Füge Puls-Effekt hinzu beim erfolgreichen Scan
+        document.getElementById('render').classList.add('scan-success');
+
         await html5QrCode.stop();
 
-        // Füge kurz eine Erfolgsklasse hinzu, um den Erfolg visuell zu bestätigen
-        const renderElem = document.getElementById("render");
-        renderElem.classList.add("scan-success");
-        setTimeout(() => renderElem.classList.remove("scan-success"), 800);
-
-        // Hole Produktinformationen von der API (z.B. OpenFoodFacts)
         const productData = await fetchProductData(decodedText);
-        // Zeige das Scan-Ergebnis in der UI an
+
+        // Füge Animation für das Ergebnis hinzu
+        const resultElement = document.getElementById("result");
+        resultElement.classList.add('fade-in-up');
+
         displayResult(decodedText, productData);
-        // UI-Update (z.B. erneutes Anzeigen der Steuerungselemente)
         updateUI(true);
+
+        // Entferne Animationen nach Abschluss
+        setTimeout(() => {
+          document.getElementById('render').classList.remove('scan-success');
+          resultElement.classList.remove('fade-in-up');
+        }, 1000);
+
       } catch (error) {
         showStatus("Fehler: " + error.message, "error-status");
       } finally {
@@ -644,6 +695,11 @@
           console.log('Stop error:', e);
         }
         html5QrCode = null;
+      }
+      // Entferne alle aktiven Animationen
+      const render = document.getElementById('render');
+      if (render) {
+        render.classList.remove('pulse-effect', 'scan-success');
       }
       const resultElement = document.getElementById("result");
       if (resultElement) {
