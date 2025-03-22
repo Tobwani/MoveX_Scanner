@@ -218,6 +218,29 @@
       padding: 3rem 0;
     }
 
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(44, 177, 145, 0.7);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(44, 177, 145, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(44, 177, 145, 0);
+      }
+    }
+
+    .scanning-highlight {
+      animation: pulse 2s infinite;
+    }
+
+    .scan-success {
+      animation: pulse 0.5s ease-out;
+    }
+
+
     /* Zusätzliche Medienabfrage für kleinere Geräte und PCs */
     @media (max-width: 768px) {
       .hero h1 {
@@ -365,7 +388,8 @@
           </button>
           <!-- Hinweis für iOS-Nutzer (wird nur bei iOS-Geräten angezeigt) -->
           <div class="ios-hint" id="iosHint">
-            Halte das Gerät quer und positioniere den Barcode im Rahmen
+            Hinweis: Auf iOS-Geräten kann es vereinzelt zu Problemen beim Scannen kommen. Achte auf gute Beleuchtung,
+            platziere den Barcode nah und ruhig im Rahmen.
           </div>
         </div>
         <!-- Container für den QR-Scanner -->
@@ -459,6 +483,9 @@
         // Setze die UI des Scanners zurück
         await resetScannerUI();
 
+        // Füge Highlight-Klasse hinzu, um den Scanbereich visuell hervorzuheben
+        document.getElementById("render").classList.add("scanning-highlight");
+
         // Konfigurationseinstellungen für den Scanner
         const config = {
           fps: 10,                      // Bilder pro Sekunde
@@ -493,6 +520,8 @@
       } finally {
         // Verberge den Lade-Indikator
         showIOSLoading(false);
+        // Optional: Entferne das Highlight, wenn der Scan startet oder fehlschlägt
+        document.getElementById("render").classList.remove("scanning-highlight");
       }
     }
 
@@ -506,6 +535,11 @@
         showIOSLoading(true);
         // Stoppe den Scanner, sobald ein Barcode erkannt wurde
         await html5QrCode.stop();
+
+        // Füge kurz eine Erfolgsklasse hinzu, um den Erfolg visuell zu bestätigen
+        const renderElem = document.getElementById("render");
+        renderElem.classList.add("scan-success");
+        setTimeout(() => renderElem.classList.remove("scan-success"), 800);
 
         // Hole Produktinformationen von der API (z.B. OpenFoodFacts)
         const productData = await fetchProductData(decodedText);
