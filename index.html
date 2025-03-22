@@ -596,7 +596,8 @@
         // Nova-Score
         nova: data.product.nova_group || null,
         // Nährwertlevel
-        nutrientLevels: data.product.nutrient_levels || null
+        nutrientLevels: data.product.nutrient_levels || null,
+        nutriments: data.product.nutriments || null
       };
     }
 
@@ -628,22 +629,43 @@
 
     function showNutritionLevelsModal() {
       const modalContent = document.getElementById("nutritionModalContent");
-      if (modalContent && currentNutrientLevels) {
+      if (modalContent && currentNutrientLevels && currentNutriments) {
         modalContent.innerHTML = Object.entries(currentNutrientLevels)
-          .map(([key, value]) => `
-        <div class="mb-3">
-          <h6 style="text-transform: capitalize;">${key}</h6>
-          <p>${value}</p>
-        </div>
-      `)
+          .map(([key, level]) => {
+            const translations = {
+              fat: "Fett",
+              salt: "Salz",
+              sugars: "Zucker",
+              "saturated-fat": "Gesättigte Fettsäuren"
+            };
+            const translatedKey = translations[key] || key;
+            const levelMapping = {
+              high: { text: "hoch", color: "#F44336" },
+              moderate: { text: "moderat", color: "#FF9800" },
+              low: { text: "niedrig", color: "#2CB191" }
+            };
+            const levelInfo = levelMapping[level] || { text: level, color: "#6c757d" };
+            const nutrientKey = key + "_100g";
+            const percentage = currentNutriments[nutrientKey] ? currentNutriments[nutrientKey] : "N/A";
+            // Bestimme das passende Adjektiv für die Menge
+            const mengeText = (levelInfo.text === "hoch") ? "hoher" : (levelInfo.text === "niedrig" ? "niedriger" : "moderat");
+            return `
+           <div class="mb-3">
+             <h6 style="text-transform: capitalize; color: ${levelInfo.color};">${translatedKey}</h6>
+             <p>
+               ${translatedKey} in ${mengeText} Menge (${percentage}%)
+             </p>
+           </div>
+         `;
+          })
           .join('');
       } else {
         modalContent.innerHTML = "<p>Keine zusätzlichen Nährwertinformationen verfügbar.</p>";
       }
-      // Zeige den Modal mit Bootstrap
       var modal = new bootstrap.Modal(document.getElementById('nutritionModal'));
       modal.show();
     }
+
 
 
     function showNovaDetails(novaGroup) {
@@ -754,9 +776,11 @@
      ***********************************************/
     // Globale Variable, um die aktuellen Nährwertlevel zu speichern
     let currentNutrientLevels = null;
-    function displayResult(barcode, { name, stores, nova, nutrientLevels }) {
-      // Speichern für den späteren Zugriff in der Modal
+    let currentNutriments = null;
+    function displayResult(barcode, { name, stores, nova, nutrientLevels, nutriments }) {
       currentNutrientLevels = nutrientLevels;
+      currentNutriments = nutriments;
+
       const resultContainer = document.getElementById("result");
       if (resultContainer) {
         resultContainer.innerHTML = `
@@ -768,7 +792,7 @@
             ? `<div class="mt-3 p-2 rounded nutrition-levels" style="background: #e2e3e5; border-left: 4px solid #6c757d;">
                 <div class="d-flex justify-content-between align-items-center">
                   <div>
-                    <strong>Nährwertlevel:</strong> ${formatNutrientLevels(nutrientLevels)}
+                    <strong>Nährwertlevel:</strong> ${formatNutrientLevels(nutrientLevels, nutriments)}
                   </div>
                   <i class="fas fa-info-circle nutrition-info-icon" onclick="showNutritionLevelsModal()"></i>
                 </div>
@@ -782,12 +806,36 @@
       showStatus('Produkt erfolgreich gescannt!', 'scanning-status');
     }
 
-    function formatNutrientLevels(levels) {
-      // Konvertiert das Objekt in einen String, z.B. "fat: high, salt: low, sugars: moderate"
+    function formatNutrientLevels(levels, nutriments) {
+      // Übersetzungen für Nährstoffnamen
+      const translations = {
+        fat: "Fett",
+        salt: "Salz",
+        sugars: "Zucker",
+        "saturated-fat": "Gesättigte Fettsäuren"
+        // Weitere Einträge bei Bedarf hinzufügen
+      };
+
+      // Mapping für die Level mit Text und Farbe
+      const levelMapping = {
+        high: { text: "hoch", color: "#F44336" },
+        moderate: { text: "moderat", color: "#FF9800" },
+        low: { text: "niedrig", color: "#2CB191" }
+      };
+
       return Object.entries(levels)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
+        .map(([key, level]) => {
+          const translatedKey = translations[key] || key;
+          const levelInfo = levelMapping[level] || { text: level, color: "#6c757d" };
+          // Annahme: Prozentwert ist als Schlüssel "nutrient_100g" vorhanden
+          const nutrientKey = key + "_100g";
+          const percentage = nutriments && nutriments[nutrientKey] ? nutriments[nutrientKey] : null;
+          const percentageText = percentage ? ` (${percentage}%)` : "";
+          return `<span style="color: ${levelInfo.color};">${translatedKey}: ${levelInfo.text}${percentageText}</span>`;
+        })
+        .join(", ");
     }
+
 
     /***********************************************
      * Funktion: handleCameraError
@@ -917,12 +965,13 @@
         </div>
         <div class="modal-body">
           <div id="nutritionModalContent">
-            <!-- Dynamische Inhalte werden hier eingefügt -->
+            <!-- Dynamischer Inhalt wird hier eingefügt -->
           </div>
         </div>
       </div>
     </div>
   </div>
+
 </body>
 
 </html>
