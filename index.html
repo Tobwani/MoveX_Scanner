@@ -668,15 +668,7 @@
       if (modalContent && currentNutrientLevels && currentNutriments) {
         modalContent.innerHTML = generateNutritionLevelsHTML(currentNutrientLevels, currentNutriments);
       } else {
-        modalContent.innerHTML = `
-        <div style="text-align: center; padding: 1rem; background: #FFF3CD; border: 1px solid #FFC107; border-radius: 8px;">
-          <p style="font-size: 1.1rem; font-weight: 500; color: #856404;">
-            Leider sind für dieses Produkt derzeit keine weiteren Nährwertinformationen verfügbar.
-            Wir arbeiten kontinuierlich daran, unsere Datenbank zu erweitern, um Ihnen in Zukunft umfassendere Informationen bieten zu können.
-          </p>
-          <i class="fa-solid fa-circle-info" style="font-size: 2rem; color: #856404;"></i>
-        </div>
-      `;
+        modalContent.innerHTML = "<p>Keine zusätzlichen Nährwertinformationen verfügbar.</p>";
       }
       const modal = new bootstrap.Modal(document.getElementById('nutritionModal'));
       modal.show();
@@ -821,7 +813,15 @@
           </div>
         `;
       });
-      html += '</div>';
+      html += `
+        <div style="text-align: center; padding: 1rem; background: #FFF3CD; border: 1px solid #FFC107; border-radius: 8px;">
+    <p style="font-size: 1.1rem; font-weight: 500; color: #856404;">
+      Leider sind für dieses Produkt derzeit keine weiteren Nährwertinformationen verfügbar.
+      Wir arbeiten kontinuierlich daran, unsere Datenbank zu erweitern, um Ihnen in Zukunft umfassendere Informationen bieten zu können.
+    </p>
+    <i class="fa-solid fa-circle-info" style="font-size: 2rem; color: #856404;"></i>
+  </div>
+      </div>`;
       return html;
     }
 
