@@ -492,7 +492,7 @@
     <div class="container text-center">
       <p class="mb-1">&copy; 2025 NutriScan - Ernährungsbewusstsein made simple</p>
       <p class="small">
-        Aktueller Produktkatalog: <span id="productCount">Lade...</span><br>
+        Aktueller Produktkatalog: 3,7 Mio. Lebensmittel<br>
         <a href="https://world.openfoodfacts.org/">Powered by Open Food Facts API</a>
       </p>
     </div>
@@ -668,7 +668,15 @@
       if (modalContent && currentNutrientLevels && currentNutriments) {
         modalContent.innerHTML = generateNutritionLevelsHTML(currentNutrientLevels, currentNutriments);
       } else {
-        modalContent.innerHTML = "<p>Keine zusätzlichen Nährwertinformationen verfügbar.</p>";
+        modalContent.innerHTML = `
+        <div style="text-align: center; padding: 1rem; background: #FFF3CD; border: 1px solid #FFC107; border-radius: 8px;">
+          <p style="font-size: 1.1rem; font-weight: 500; color: #856404;">
+            Leider sind für dieses Produkt derzeit keine weiteren Nährwertinformationen verfügbar.
+            Wir arbeiten kontinuierlich daran, unsere Datenbank zu erweitern, um Ihnen in Zukunft umfassendere Informationen bieten zu können.
+          </p>
+          <i class="fa-solid fa-circle-info" style="font-size: 2rem; color: #856404;"></i>
+        </div>
+      `;
       }
       const modal = new bootstrap.Modal(document.getElementById('nutritionModal'));
       modal.show();
